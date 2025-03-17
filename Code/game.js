@@ -1020,17 +1020,17 @@ function initializeMaterials() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-    preloadImages()
-    init_json()
-    loadModel()
-    initializeMaterials()
-    deck = [...elements, ...elements]
-    deck = shuffle(deck)
-    random_hand()
-    view_p1_hand()
-    view_p2_hand()
-    addOptions()
-    turn = Math.random()>=0.5 ? "p1" : "p2"
+    preloadImages();
+    init_json();
+    loadModel();
+    initializeMaterials();
+    deck = [...elements, ...elements];
+    deck = shuffle(deck);
+    random_hand();
+    view_p1_hand();
+    view_p2_hand();
+    addOptions();
+    turn = Math.random()>=0.5 ? "p1" : "p2";
     if (turn == "p1") {p1_action()}
 })
 
