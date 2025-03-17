@@ -158,14 +158,14 @@
 }
 #inputTag {
     display: inline;
-    width: calc(100vw - 150px);
-    margin: 10px 0 2vh 10px;
+    width: calc(80% - 2vw);
+    margin: 10px 0 2vh 0;
     font-size: 5vh;
 }
 #inputButton {
     display: inline;
-    margin: 0 0 2vh 10px;
     font-size: 4vh;
+    margin: 0 0 0 10px;
 }
 #buttonModal button {
     width: 40%;
@@ -187,6 +187,44 @@
 #predictResultContainer {
     display: none;
 }
+#NewModelOptionsDiv{
+    left: 5%;
+    width: 90%;
+    margin-bottom: 10px;
+}
+#NewModelOptionsDiv{
+    display: inline;
+    text-align:right;
+}
+#_inputDiv {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: white;
+    left: 5%;
+    width: 90%;
+    height: 15%;
+    margin-bottom: 10px;
+}
+
+#inputTag {
+    flex-grow: 1;
+    width: auto; /* 親要素に合わせる */
+    margin-right: 10px;
+    font-size: 4vh;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+#inputButton {
+    font-size: 4vh;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    background-color: #ddd;
+}
+
+
 
 @media screen and (max-width: 730px) {
     #winSettingsModal {
