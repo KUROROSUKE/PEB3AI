@@ -1190,7 +1190,7 @@ function selectModelOnSetting(modelName) {
 
 function applyModalSetting() {
     closeModelModal();
-    loadModel("notNull",modelName);
+    loadModel("notNull",selectingModel);
 }
 
 function closeModelModal() {
