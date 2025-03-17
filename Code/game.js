@@ -1190,6 +1190,7 @@ function selectModelOnSetting(modelName) {
 
 function applyModalSetting() {
     closeModelModal();
+    document.getElementById("Attention2").innerHTML = "do this";
     loadModel("notNull",selectingModel);
 }
 
