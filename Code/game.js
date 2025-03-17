@@ -1191,3 +1191,8 @@ function selectModelOnSetting(modelName) {
 function applyModalSetting() {
     loadModel("notNull",modelName);
 }
+
+function closeModelModal() {
+    document.getElementById("modelModals").style.display = "none";
+    document.getElementById("buttonModal").style.display = "none;
+}
