@@ -1197,5 +1197,5 @@ function applyModalSetting() {
 function closeModelModal() {
     document.getElementById("modelModals").style.display = "none";
     document.getElementById("buttonModal").style.display = "none";
-    document.getElementById("winSettingModal").style.display = "none";
+    document.getElementById("winSettingsModal").style.display = "none";
 }
