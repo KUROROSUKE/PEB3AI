@@ -1189,6 +1189,7 @@ function selectModelOnSetting(modelName) {
 }
 
 function applyModalSetting() {
+    closeModelModal();
     loadModel("notNull",modelName);
 }
 
