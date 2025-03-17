@@ -50,7 +50,7 @@ function extractModelName(url) {
 }
 
 // 1. モデルをロード（localStorageを優先）
-async function loadModel(url=null, modelName=null) {
+async function loadModel(url=null, NameOfModel=null) {
     try {
         if (url == null){//最初にこれを読み込む
             const models = await tf.io.listModels();
@@ -63,7 +63,7 @@ async function loadModel(url=null, modelName=null) {
                 console.log("サーバーからモデルをロードしました");
         }} else  {
             const models = await tf.io.listModels();
-            modelName = modelName==null ? extractModelName(url) : modelName
+            modelName = NameOfModel==null ? extractModelName(url) : NameOfModel;
             console.log(modelName);
             if (models[`indexeddb://${modelName}`]) {
                 model = await tf.loadLayersModel(`indexeddb://${modelName}`); // IndexedDB からロード
@@ -73,6 +73,8 @@ async function loadModel(url=null, modelName=null) {
                 model = await tf.loadLayersModel(`${url}/model.json`); // 外部モデルをロード
                 console.log("サーバーからモデルをロードしました");
         }}
+        await saveModel();
+        addOptions();
         document.getElementById("Attention").style.display = "none";
     } catch (error) {
         console.error("モデルのロードに失敗しました", error);
@@ -363,6 +365,20 @@ async function runModel(who) {
     let weightedResults = calculateWeightedProbabilities(pseudoProbability, outputData);
     console.log(weightedResults)
 
+    let sortedResults = Object.entries(weightedResults).sort((a, b) => b[1] - a[1]);
+
+    // HTMLテーブル更新
+    let tableBody = document.getElementById("predictTable").getElementsByTagName("tbody")[0];
+    tableBody.innerHTML = ""; // テーブルをクリア
+
+    sortedResults.forEach(([key, value]) => {
+        let row = tableBody.insertRow();
+        let cell1 = row.insertCell(0);
+        let cell2 = row.insertCell(1);
+        cell1.innerHTML = materials[key].a;  // 物質名
+        cell2.innerHTML = (value * 100).toFixed(2) + "%";  // 確率（%表示）
+    });
+
 
     // Math.max を使って最大値を取得
     var confidence = Math.max(...Object.values(weightedResults));
@@ -446,46 +462,46 @@ async function loadMaterials(url) {
 async function view_p2_hand() {
     const area = document.getElementById('p2_hand')
     p2_hand.forEach((elem, index) => {
-        const image = document.createElement("img")
-        image.src = imageCache[elementToNumber[elem]].src
-        image.alt = elem
-        image.style.padding = "5px"
-        image.style.border = "1px solid #000"
-        image.classList.add("selected")
+        const image = document.createElement("img");
+        image.src = imageCache[elementToNumber[elem]].src;
+        image.alt = elem;
+        image.style.padding = "5px";
+        image.style.border = "1px solid #000";
+        image.classList.add("selected");
         image.addEventListener("click", function() {
-            const button = document.getElementById("ron_button")
-            button.style.display = "none"
+            const button = document.getElementById("ron_button");
+            button.style.display = "none";
             if (time == "make") {
-                this.classList.toggle("selected")
+                this.classList.toggle("selected");
                 if (this.classList.contains("selected")){
-                    this.style.border = "1px solid #000"
-                    this.style.padding = "5px"
-                    p2_selected_card.splice(p2_selected_card.indexOf(this.alt),1)
+                    this.style.border = "1px solid #000";
+                    this.style.padding = "5px";
+                    p2_selected_card.splice(p2_selected_card.indexOf(this.alt),1);
                 } else {
-                    this.style.border = "5px solid #F00"
-                    this.style.padding = "1px"
-                    p2_selected_card.push(this.alt)
+                    this.style.border = "5px solid #F00";
+                    this.style.padding = "1px";
+                    p2_selected_card.push(this.alt);
                 }}
             if (turn == "p2" && time == "game") {
-                dropped_cards_p2.push(this.alt)
-                const img = document.createElement("img")
-                img.alt = this.alt
-                img.src = imageCache[elementToNumber[this.alt]].src
-                img.style.border = "1px solid #000"
-                document.getElementById("dropped_area_p2").appendChild(img)
-                this.classList.remove("selected")
-                this.classList.add("selected")
-                let newElem = drawCard()
-                this.src = imageCache[elementToNumber[newElem]].src
-                this.alt = newElem
-                this.style.padding = "5px"
-                this.style.border = "1px solid #000"
-                p2_hand[index] = newElem
-                turn = "p1"
-                setTimeout(() => {p1_action()},500)
+                dropped_cards_p2.push(this.alt);
+                const img = document.createElement("img");
+                img.alt = this.alt;
+                img.src = imageCache[elementToNumber[this.alt]].src;
+                img.style.border = "1px solid #000";
+                document.getElementById("dropped_area_p2").appendChild(img);
+                this.classList.remove("selected");
+                this.classList.add("selected");
+                let newElem = drawCard();
+                this.src = imageCache[elementToNumber[newElem]].src;
+                this.alt = newElem;
+                this.style.padding = "5px";
+                this.style.border = "1px solid #000";
+                p2_hand[index] = newElem;
+                turn = "p1";
+                setTimeout(() => {p1_action()},500);
             }
         })
-        area.appendChild(image)
+        area.appendChild(image);
     })
 }
 
@@ -870,7 +886,7 @@ function preloadImages() {
 
     imageNumbers.forEach(num => {
         let img = new Image();
-        img.src = `../images/${num}.webp`;
+        img.src = `../images/${num}.png`;
         imageCache[num] = img;
     });
 }
@@ -968,14 +984,6 @@ async function saveWinSettings() {
         var compoundsURL = document.getElementById("compoundsURL").value;
     }
     materials = await loadMaterials(compoundsURL);
-    
-    var modelSelect = document.getElementById("modelSelection").value;
-    if (modelSelect!="new"){
-        modelURL = `https://kurorosuke.github.io/AI_models/${modelSelect}`;
-    } else {
-        modelURL = document.getElementById("modelURL").value;
-    }
-    model = loadModel(modelURL);
 
     WIN_POINT = winPointInput;
     WIN_TURN = winTurnInput;
@@ -985,7 +993,7 @@ function closeWinSettings() {
     document.getElementById("winSettingsModal").style.display = "none";
 }
 document.getElementById("setting_icon").addEventListener("click", function() {
-    document.getElementById("winSettingsModal").style.display = "inline"
+    document.getElementById("winSettingsModal").style.display = "inline";
 })
 
 
@@ -1019,6 +1027,33 @@ function initializeMaterials() {
     }
 }
 
+function addInputModelDiv() {
+    const NewModelOption = document.createElement("div");
+    NewModelOption.id = "_inputDiv";
+    let inputTag = document.createElement("input");
+    inputTag.id = "inputTag";
+    inputTag.placeholder = "新しいモデルのURLを入力";
+    let inputButton = document.createElement("button");
+    inputButton.innerHTML = "追加";
+    inputButton.id = "inputButton";
+    inputButton.onclick = function() {
+        let inputTagDOM = document.getElementById("inputTag");
+        console.log(inputTagDOM.value)
+        getModelNames().then(models => {
+            do {
+                userInput = prompt("名前を入力してください:");
+                if (userInput==null) {userInput = extractModelName(url)};
+            } while (models.includes(userInput));
+            loadModel(inputTagDOM.value,userInput);
+            inputTagDOM.value = "";
+        });
+    };
+    NewModelOption.appendChild(inputTag);
+    NewModelOption.appendChild(inputButton);
+    document.getElementById("modelModals").appendChild(NewModelOption);
+}
+
+
 document.addEventListener('DOMContentLoaded', function () {
     preloadImages();
     init_json();
@@ -1026,10 +1061,10 @@ document.addEventListener('DOMContentLoaded', function () {
     initializeMaterials();
     deck = [...elements, ...elements];
     deck = shuffle(deck);
+    addInputModelDiv();
     random_hand();
     view_p1_hand();
     view_p2_hand();
-    addOptions();
     turn = Math.random()>=0.5 ? "p1" : "p2";
     if (turn == "p1") {p1_action()}
 })
@@ -1090,7 +1125,6 @@ async function getModelNames() {
     try {
         const models = await tf.io.listModels();
         const modelNames = Object.keys(models).map(key => key.replace('indexeddb://', ''));
-        console.log(modelNames);
         return modelNames;
     } catch (error) {
         console.error("モデル名の取得に失敗しました", error);
@@ -1100,8 +1134,20 @@ async function getModelNames() {
 
 async function addOptions() {
     let models = await getModelNames();
-    const Selection = document.getElementById("modelModals")
-    models.forEach(elem => {
+    const Selection = document.getElementById("modelModals");
+    const ids = [];
+    if (Selection) {
+        const innerDivs = Selection.getElementsByTagName("div"); 
+        for (let div of innerDivs) {
+            if (div.id) {
+                ids.push(div.id); // idが存在する場合のみ追加
+            }
+        }
+    }
+    let remainingModels = models.filter(model => !ids.includes(model));
+    
+    
+    remainingModels.forEach(elem => {
         const newOption = document.createElement("div");
         newOption.className = "modelModal";
         newOption.id = elem
@@ -1118,7 +1164,7 @@ async function addOptions() {
         // 削除ボタン
         let deleteButton = document.createElement("button");
         deleteButton.textContent = "削除";
-        selectButton.id = newOption.id;
+        deleteButton.id = newOption.id;
         deleteButton.onclick = function() { removeModelOnSetting(this.id); };
         
         // 初期化ボタン
@@ -1129,7 +1175,8 @@ async function addOptions() {
         // 保存ボタン
         let saveButton = document.createElement("button");
         saveButton.textContent = "保存";
-        saveButton.onclick = function() { console.log("保存が実行されました"); };
+        saveButton.id = newOption.id;
+        saveButton.onclick = function() {downloadModel(this.id); };
 
         // 要素をモーダルに追加
         newOption.appendChild(title);
@@ -1174,28 +1221,64 @@ function convertToVector(material, elementDict) {
 }
 
 function showModelDetail() {
+    addOptions();
     document.getElementById("modelModals").style.display = "inline";
     document.getElementById("buttonModal").style.display = "inline";
+    document.getElementById("overlay").style.display = "inline";
 }
 
 let selectingModel;
-function selectModelOnSetting(modelName) {
-    selectingModel = modelName;
+function selectModelOnSetting(selectModelName) {
+    selectingModel = selectModelName;
     const modelDivs = document.querySelectorAll("#modelModals div");
     modelDivs.forEach(elem => {
         elem.style.background = "white";
     })
-    document.getElementById(modelName).style.background = "pink";
+    document.getElementById(selectModelName).style.background = "pink";
 }
 
 function applyModalSetting() {
+    document.getElementById("winSettingsModal").style.display = "none";
+    removeTarget.forEach(elem => {
+        tf.io.removeModel(`indexeddb://${elem}`)
+    })
+    console.log(`this:${selectingModel}`);
+    if (selectingModel) {
+        if (!removeTarget.includes(selectingModel)) {
+            loadModel("notNull",selectingModel);
+        } else {
+            loadModel("https://kurorosuke.github.io/AI_models/model1");
+        }
+    }
     closeModelModal();
-    document.getElementById("Attention2").innerHTML = "do this";
-    loadModel("notNull",selectingModel);
+}
+
+let removeTarget = []
+function removeModelOnSetting(selectModelName) {
+    console.log(selectModelName);
+    removeTarget.push(selectModelName);
+    document.getElementById(selectModelName).remove();
 }
 
 function closeModelModal() {
+    removeTarget = [];
     document.getElementById("modelModals").style.display = "none";
     document.getElementById("buttonModal").style.display = "none";
-    document.getElementById("winSettingsModal").style.display = "none";
+    document.getElementById("overlay").style.display = "none";
+}
+
+async function downloadModel(NameOfModel) {
+    console.log(NameOfModel)
+    try {
+        // IndexedDB からモデルを取得
+        const model = await tf.loadLayersModel(`indexeddb://${NameOfModel}`);
+
+        // モデルを localStorage にエクスポート
+        await model.save(`downloads://${NameOfModel}`);
+        alert(`${NameOfModel} をダウンロードしました`)
+
+        console.log(`モデル ${NameOfModel} をダウンロードフォルダに保存しました！`);
+    } catch (error) {
+        console.error(`モデル ${NameOfModel} のダウンロードに失敗しました`, error);
+    }
 }

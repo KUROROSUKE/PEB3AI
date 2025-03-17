@@ -37,6 +37,18 @@
         <button class="buttons" id="nextButton"></button>
         <button class="buttons" id="ron_button">融合</button>
     </div>
+    <div id="predictResultContainer">
+        <h3>予測結果</h3>
+        <table id="predictTable">
+            <thead>
+                <tr>
+                    <th>名前</th>
+                    <th>確率</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
     <div id="winSettingsModal">
         <p>more detail: <a href="https://github.com/kurorosuke/EB3/GameRules.html">GameRules</a></p>
         <label>win point: <input type="number" id="winPointInput" value="250" min="1"></label><br>
@@ -54,12 +66,7 @@
             </label>
         </div>
         <div style="padding:0 5% 0 0">
-            <label style="width:100%">AIModelURL：
-            <select id="modelSelection" onchange="showModelInputTag()">
-                <option value="new">new model</option>
-                <option value="model1" selected>model1</option>
-            </select><button id="ModelDetail" onclick="showModelDetail()" style="margin:0 0 0 10px">詳細設定</button><br>
-            <input type="url" id="modelURL" value="https://kurorosuke.github.io/AI_models/model1" style="display:none;width:100%;padding:10px"></label>
+            <label style="width:100%">AIModelURL：<button id="ModelDetail" onclick="showModelDetail()" style="margin:0 0 0 10px">設定</button><br>
         </div>
         <div style="display: flex; justify-content: space-between; padding: 5%;">
             <button onclick="saveWinSettings()" style="padding: 10px 20px; font-size: 1.2em; width: 45%;">適用</button>
@@ -85,6 +92,7 @@
         </div>
     </div>
     <!-- モデル制御モーダル -->
+    <div id="overlay"></div>
     <div id="modelModals">
     </div>
     <!-- ボタンモーダル -->
@@ -93,6 +101,5 @@
         <button onclick="closeModelModal()">取消</button>
     </div>
     <script src="game.js"></script>
-    <script src="https://iwb.jp/s/js/tiny-console.js"></script>
 </body>
 </html>
