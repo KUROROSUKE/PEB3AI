@@ -1071,6 +1071,7 @@ function addLoadingButton() {
     loadingModelButton.id = "loadingModelButton";
     loadingModelButton.type = "file";
     loadingModelButton.accept=".json";
+    loadingModelButton.style.display = "none";
     document.getElementById("Attention3").style.display = "none";
     loadingModelButton.addEventListener('change', async (event) => {
         const files = event.target.files;
