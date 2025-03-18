@@ -1,4 +1,4 @@
-let p1_hand = []; let p2_hand = []
+ー＾let p1_hand = []; let p2_hand = []
 let p1_point = 0; let p2_point = 0
 let p1_selected_card = []; let p2_selected_card = []
 
@@ -48,6 +48,27 @@ function extractModelName(url) {
     const match = url.match(/\/([^\/]+)$/);
     return match ? match[1] : null;
 }
+
+// 1. モデルをロード（localStorageを優先）
+async function loadModelOnSetting(path, NameOfModel) {
+    try {
+        const models = await tf.io.listModels();
+        modelName = NameOfModel==null ? extractModelName(path) : NameOfModel;
+        console.log(modelName);
+        console.log(`${path}/model.json`);
+        const handler = tf.io.fileSystem(`${path}/model.json`);
+        model = await tf.loadLayersModel(handler);
+        console.log("サーバーからモデルをロードしました");
+        await saveModel();
+        addOptions();
+        document.getElementById("Attention").style.display = "none";
+    } catch (error) {
+        console.error("モデルのロードに失敗しました", error);
+        document.getElementById("Attention").style.display = "block";
+    }
+}
+
+
 
 // 1. モデルをロード（localStorageを優先）
 async function loadModel(url=null, NameOfModel=null) {
@@ -1048,8 +1069,29 @@ function addInputModelDiv() {
             inputTagDOM.value = "";
         });
     };
+
+    let loadingModelButton = document.createElement("input");
+    loadingModelButton.innerHTML = "読込";
+    loadingModelButton.id = "loadingModelButton";
+    loadingModelButton.type = "file";
+    loadingModelButton.onchange = function() {
+        if (path.extname(this.value) == "json") {
+            getModelNames().then(models => {
+                do {
+                    userInput = prompt("名前を入力してください:");
+                    if (userInput==null) {userInput = extractModelName(url)};
+                } while (models.includes(userInput));
+                loadModelOnSetting(path, userInput);
+                loadingModelButton.value = "";
+                document.getElementById("Attention3").display = "none";
+            });
+        } else {
+            document.getElementById("Attention3").display = "inline";
+        }
+    };
     NewModelOption.appendChild(inputTag);
     NewModelOption.appendChild(inputButton);
+    NewModelOption.appendChild(loadingModelButton);
     document.getElementById("modelModals").appendChild(NewModelOption);
 }
 
@@ -1281,4 +1323,8 @@ async function downloadModel(NameOfModel) {
     } catch (error) {
         console.error(`モデル ${NameOfModel} のダウンロードに失敗しました`, error);
     }
+}
+
+function loadModelBySetting() {
+    const path = 
 }
