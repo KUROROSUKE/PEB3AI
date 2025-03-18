@@ -269,6 +269,7 @@ async function trainModel() {
 
 function CanCreateMaterial(material) {
     // 必要な元素リスト
+    console.log(material)
     const requiredElements = material.d;
 
     // 使用可能な元素のカウント
@@ -395,7 +396,12 @@ async function runModel(who,madeMaterialNum) {
     // 最大値に対応するキーを検索
     var predictedClass = Object.keys(weightedResults).find(key => weightedResults[key] === confidence);
 
+    console.log(predictedClass)
     console.log(materials[predictedClass]);
+
+    if (materials[predictedClass] == null) {
+        console.log("モデルと化合物のバージョンが異なります")
+    }
 
 
     while (await CanCreateMaterial(materials[predictedClass])) {
@@ -509,6 +515,9 @@ async function view_p2_hand() {
                 this.style.border = "1px solid #000";
                 p2_hand[index] = newElem;
                 turn = "p1";
+                if (document.getElementById("hintContainer").style.display != 'none') {
+                    document.getElementById("hint_button").click();
+                }
                 setTimeout(() => {p1_action()},500);
             }
         })
@@ -578,6 +587,7 @@ async function p2_make() {
     // ボタンクリックを待機
     return new Promise((resolve) => {
         newButton.addEventListener("click", function () {
+            document.getElementById("hintContainer").style.display = "none";
             const p2_make_material = search(arrayToObj(p2_selected_card));
             resolve(p2_make_material);
         });
@@ -607,6 +617,9 @@ async function incrementMaterialCount(material) {
 
 
 async function done(who, isRon = false) {
+    document.getElementById("ron_button").style.display = "none";
+    document.getElementById("hint_button").style.display = "none";
+    document.getElementById("hintContainer").style.display = "none";
 
     const p2_make_material = await p2_make();
     console.log(p2_make_material.f);
@@ -844,9 +857,10 @@ function random_hand() {
 
 document.getElementById("generate_button").addEventListener("click", function () {
     if (turn == "p2") {
+        document.getElementById("hintContainer").style.display = "none"; // 非表示
+        document.getElementById("hint_button").style.display = "none"; // 非表示
         time = "make"
-        const newRonButton = document.getElementById("ron_button");
-        newRonButton.style.display = "none";
+        const newRonButton = document.getElementById("ron_button").style.display = "none";
         done("p2");
     }
 })
@@ -888,6 +902,7 @@ function resetGame() {
     random_hand();
     view_p1_hand();
     view_p2_hand();
+    document.getElementById("hint_button").style.display = "inline";
 
     if (turn === "p1") {
         setTimeout(() => p1_action(), 500);
@@ -899,7 +914,7 @@ function preloadImages() {
 
     imageNumbers.forEach(num => {
         let img = new Image();
-        img.src = `../images/${num}.png`;
+        img.src = `../images/${num}.webp`;
         imageCache[num] = img;
     });
 }
@@ -922,6 +937,8 @@ async function checkRon(droppedCard) {
 
         newRonButton.addEventListener("click", function () {
             newRonButton.style.display = "none";
+            document.getElementById("hintContainer").style.display = "none"; // 非表示
+            document.getElementById("hint_button").style.display = "none"; // 非表示
             const dropped = document.querySelectorAll("#dropped_area_p1 img");
             const selectCard = dropped[dropped.length - 1];
             selectCard.style.border = "2px solid red";
@@ -1324,4 +1341,68 @@ async function downloadModel(NameOfModel) {
     } catch (error) {
         console.error(`モデル ${NameOfModel} のダウンロードに失敗しました`, error);
     }
+}
+
+
+document.getElementById("hint_button").addEventListener("click", function () {
+    let closestMaterials = findClosestMaterials(p2_hand);
+    
+    let tableBody = document.getElementById("hintTable").getElementsByTagName("tbody")[0];
+    tableBody.innerHTML = ""; // 既存のデータをクリア
+
+    if (closestMaterials.length === 0) {
+        let row = tableBody.insertRow();
+        let cell = row.insertCell(0);
+        cell.colSpan = 3;
+        cell.innerHTML = "近い物質が見つかりません";
+        cell.style.textAlign = "center";
+        return;
+    }
+
+    closestMaterials.forEach((match) => {
+        let material = materials[match.index];
+
+        let row = tableBody.insertRow();
+        let cell1 = row.insertCell(0);
+        let cell2 = row.insertCell(1);
+        let cell3 = row.insertCell(2);
+
+        cell1.innerHTML = material.a;  // 物質名
+        cell2.innerHTML = material.b;  // 組成式
+        cell3.innerHTML = material.c;  // 類似度
+    });
+
+    document.getElementById("hintContainer").style.display = "inline"; // 表示
+});
+
+
+
+// 手札をベクトル化する関数（各元素のカウントを考慮）
+function convertToVector2(hand, elementDict) {
+    let vector = new Array(elementDict.length).fill(0);
+    hand.forEach(el => {
+        let index = elementDict.indexOf(el);
+        if (index !== -1) vector[index]++;  // 各元素の出現回数をカウント
+    });
+    return vector;
+}
+
+
+function findClosestMaterials(hand) {
+    let handVector = convertToVector2(hand, element);
+    
+    let similarities = materials.map((material, index) => {
+        let materialVector = new Array(element.length).fill(0);
+        
+        // 物質の組成 `d` をベクトル化
+        for (let [el, count] of Object.entries(material.d)) {
+            let elIndex = element.indexOf(el);
+            if (elIndex !== -1) materialVector[elIndex] = count;  // 各元素の数を考慮
+        }
+
+        return { index, similarity: cosineSimilarity(handVector, materialVector) };
+    });
+
+    // コサイン類似度が高い順にソートし、上位3つを取得
+    return similarities.sort((a, b) => b.similarity - a.similarity).slice(0, 3);
 }
