@@ -1,4 +1,4 @@
-ー＾let p1_hand = []; let p2_hand = []
+let p1_hand = []; let p2_hand = []
 let p1_point = 0; let p2_point = 0
 let p1_selected_card = []; let p2_selected_card = []
 
@@ -49,25 +49,6 @@ function extractModelName(url) {
     return match ? match[1] : null;
 }
 
-// 1. モデルをロード（localStorageを優先）
-async function loadModelOnSetting(path, NameOfModel) {
-    try {
-        const models = await tf.io.listModels();
-        modelName = NameOfModel==null ? extractModelName(path) : NameOfModel;
-        console.log(modelName);
-        console.log(`${path}/model.json`);
-        const handler = tf.io.fileSystem(`${path}/model.json`);
-        model = await tf.loadLayersModel(handler);
-        console.log("サーバーからモデルをロードしました");
-        await saveModel();
-        addOptions();
-        document.getElementById("Attention").style.display = "none";
-    } catch (error) {
-        console.error("モデルのロードに失敗しました", error);
-        document.getElementById("Attention").style.display = "block";
-    }
-}
-
 
 
 // 1. モデルをロード（localStorageを優先）
@@ -75,9 +56,9 @@ async function loadModel(url=null, NameOfModel=null) {
     try {
         if (url == null){//最初にこれを読み込む
             const models = await tf.io.listModels();
-            modelName = "model1";
-            if (models['indexeddb://model1']) {
-                model = await tf.loadLayersModel('indexeddb://model1'); // IndexedDB からロード
+            modelName = "standardModel";
+            if (models['indexeddb://standardModel']) {
+                model = await tf.loadLayersModel('indexeddb://standardModel'); // IndexedDB からロード
                 console.log("ローカルの学習済みモデルをロードしました");
             } else {
                 model = await tf.loadLayersModel('https://kurorosuke.github.io/AI_models/model1/model.json'); // 外部モデルをロード
@@ -361,7 +342,7 @@ function calculateWeightedProbabilities(probabilities, outputData) {
 }
 
 //推論
-async function runModel(who) {
+async function runModel(who,madeMaterialNum) {
     if (!model) {
         console.log("モデルがロードされていません");
         return;
@@ -387,18 +368,25 @@ async function runModel(who) {
     console.log(weightedResults)
 
     let sortedResults = Object.entries(weightedResults).sort((a, b) => b[1] - a[1]);
+    ShowMaterials = sortedResults.slice(0,3); // 最初の3つの要素を取得
+    ShowMaterials.push([madeMaterialNum , weightedResults[madeMaterialNum]])
+    console.log(ShowMaterials);
+
 
     // HTMLテーブル更新
     let tableBody = document.getElementById("predictTable").getElementsByTagName("tbody")[0];
     tableBody.innerHTML = ""; // テーブルをクリア
 
-    sortedResults.forEach(([key, value]) => {
-        let row = tableBody.insertRow();
-        let cell1 = row.insertCell(0);
-        let cell2 = row.insertCell(1);
-        cell1.innerHTML = materials[key].a;  // 物質名
-        cell2.innerHTML = (value * 100).toFixed(2) + "%";  // 確率（%表示）
+    ShowMaterials.forEach(([key, value]) => {
+        if (materials[key] != null) {
+            let row = tableBody.insertRow();
+            let cell1 = row.insertCell(0);
+            let cell2 = row.insertCell(1);
+            cell1.innerHTML = materials[key].a;  // 物質名
+            cell2.innerHTML = (value * 100).toFixed(2) + "%";  // 確率（%表示）
+        }
     });
+    document.getElementById("predictResultContainer").style.display = "inline";
 
 
     // Math.max を使って最大値を取得
@@ -619,7 +607,8 @@ async function incrementMaterialCount(material) {
 async function done(who, isRon = false) {
 
     const p2_make_material = await p2_make();
-    predictedMaterialP2 = await runModel(who=="p1" ? 0:1)
+    console.log(p2_make_material.f);
+    predictedMaterialP2 = await runModel(who=="p1" ? 0:1, madeMaterialNum=p2_make_material.f);
     const p1_make_material = await p1_make(predictedMaterialP2);
 
     dora = await get_dora();
@@ -683,6 +672,7 @@ async function done(who, isRon = false) {
         numTurn += 1;
         button.textContent = "次のゲーム";
         button.addEventListener("click", function () {
+            document.getElementById("predictResultContainer").style.display = "none";
             resetGame();
             button.style.display = "none"
             const newButton = button.cloneNode(true);
@@ -913,7 +903,7 @@ function preloadImages() {
 }
 
 async function init_json() {
-    materials = await loadMaterials("https://kurorosuke.github.io/compounds/obf_extended_min.json");
+    materials = await loadMaterials("https://kurorosuke.github.io/compounds/obf_standard_min.json");
 }
 
 
@@ -1069,28 +1059,34 @@ function addInputModelDiv() {
             inputTagDOM.value = "";
         });
     };
+    NewModelOption.appendChild(inputTag);
+    NewModelOption.appendChild(inputButton);
+    document.getElementById("modelModals").appendChild(NewModelOption);
+}
 
+function addLoadingButton() {
+    const NewModelOption = document.createElement("div");
     let loadingModelButton = document.createElement("input");
     loadingModelButton.innerHTML = "読込";
     loadingModelButton.id = "loadingModelButton";
     loadingModelButton.type = "file";
-    loadingModelButton.onchange = function() {
-        if (path.extname(this.value) == "json") {
-            getModelNames().then(models => {
-                do {
-                    userInput = prompt("名前を入力してください:");
-                    if (userInput==null) {userInput = extractModelName(url)};
-                } while (models.includes(userInput));
-                loadModelOnSetting(path, userInput);
-                loadingModelButton.value = "";
-                document.getElementById("Attention3").display = "none";
-            });
-        } else {
-            document.getElementById("Attention3").display = "inline";
-        }
-    };
-    NewModelOption.appendChild(inputTag);
-    NewModelOption.appendChild(inputButton);
+    loadingModelButton.accept=".json";
+    document.getElementById("Attention3").style.display = "none";
+    loadingModelButton.addEventListener('change', async (event) => {
+        const files = event.target.files;
+        const jsonFile = Array.from(files).find(file => file.name.endsWith('.json'));
+        const weightsFiles = Array.from(files).filter(file => file.name.endsWith('.bin'));
+        const models = await getModelNames();
+        do {
+            userInput = prompt("名前を入力してください:");
+        } while (models.includes(userInput));
+        modelName = userInput;
+        model = await tf.loadLayersModel(tf.io.browserFiles([jsonFile, ...weightsFiles]));
+        await saveModel();
+        addOptions();
+        document.getElementById("loadingModelButton").value = "";
+        document.getElementById("Attention").style.display = "none";
+    });
     NewModelOption.appendChild(loadingModelButton);
     document.getElementById("modelModals").appendChild(NewModelOption);
 }
@@ -1104,6 +1100,7 @@ document.addEventListener('DOMContentLoaded', function () {
     deck = [...elements, ...elements];
     deck = shuffle(deck);
     addInputModelDiv();
+    addLoadingButton();
     random_hand();
     view_p1_hand();
     view_p2_hand();
@@ -1323,8 +1320,4 @@ async function downloadModel(NameOfModel) {
     } catch (error) {
         console.error(`モデル ${NameOfModel} のダウンロードに失敗しました`, error);
     }
-}
-
-function loadModelBySetting() {
-    const path = 
 }

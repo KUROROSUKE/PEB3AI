@@ -217,13 +217,16 @@
 }
 
 #inputButton {
-    font-size: 4vh;
+    font-size: 3vh;
     padding: 10px 20px;
     border-radius: 5px;
     cursor: pointer;
     background-color: #ddd;
 }
 
+#loadingModelButton {
+    display: block;
+}
 
 
 @media screen and (max-width: 730px) {
