@@ -395,6 +395,8 @@ async function runModel(who,madeMaterialNum) {
     // 最大値に対応するキーを検索
     var predictedClass = Object.keys(weightedResults).find(key => weightedResults[key] === confidence);
 
+    console.log(materials[predictedClass]);
+
 
     while (await CanCreateMaterial(materials[predictedClass])) {
         // weightedResults から現在の predictedClass を削除
