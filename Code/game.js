@@ -1115,6 +1115,7 @@ function returnToStartScreen() {
     document.getElementById("dropped_area_p2").style.display = "none";
     document.getElementById("p2_area").style.display = "none";
     document.getElementById("gameRuleButton").style.display = "block";
+    document.getElementById("predictResultContainer").style.display = "none";
 }
 document.getElementById("startButton").addEventListener("click", function() {
     document.getElementById("startScreen").style.display = "none";
@@ -1123,6 +1124,7 @@ document.getElementById("startButton").addEventListener("click", function() {
     document.getElementById("dropped_area_p2").style.display = "block";
     document.getElementById("p2_area").style.display = "block";
     document.getElementById("gameRuleButton").style.display = "none";
+    document.getElementById("predictResultContainer").style.display = "none";
 });
 
 
