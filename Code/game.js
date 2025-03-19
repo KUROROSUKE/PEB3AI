@@ -183,7 +183,7 @@ async function trainModel() {
 
     // 🎯 **基本の学習（プレイヤーデータで学習）**
     await model.fit(xTrain, yTrain, {
-        epochs: 3,
+        epochs: 2,
         batchSize: 32,
         callbacks: {
             onEpochEnd: (epoch, logs) => {
@@ -491,8 +491,7 @@ async function loadMaterials(url) {
 async function view_p2_hand() {
     const area = document.getElementById('p2_hand')
     p2_hand.forEach((elem, index) => {
-        const image = document.createElement("img");
-        image.src = imageCache[elementToNumber[elem]].src;
+        const image = imageCache[elementToNumber[elem]].cloneNode(true);
         image.alt = elem;
         image.style.padding = "5px";
         image.style.border = "1px solid #000";
@@ -504,25 +503,25 @@ async function view_p2_hand() {
             if (time == "make") {
                 this.classList.toggle("selected");
                 if (this.classList.contains("selected")){
-                    p2_selected_card.splice(p2_selected_card.indexOf(this.alt),1);
-                } else {
                     p2_selected_card.push(this.alt);
+                } else {
+                    p2_selected_card.splice(p2_selected_card.indexOf(this.alt),1);
                 }}
             if (turn == "p2" && time == "game") {
                 dropped_cards_p2.push(this.alt);
-                const img = document.createElement("img");
+                const img = imageCache[elementToNumber[this.alt]].cloneNode(true);
                 img.alt = this.alt;
-                img.src = imageCache[elementToNumber[this.alt]].src;
                 img.style.border = "1px solid #000";
                 document.getElementById("dropped_area_p2").appendChild(img);
                 this.classList.remove("selected");
                 this.classList.add("selected");
                 this.classList.toggle("selected");
                 let newElem = drawCard();
-                this.src = imageCache[elementToNumber[newElem]].src;
-                this.alt = newElem;
-                this.style.padding = "5px";
-                this.style.border = "1px solid #000";
+                let newImage = imageCache[elementToNumber[newElem]].cloneNode(true);
+                newImage.alt = newElem;
+                newImage.style.padding = "5px";
+                newImage.style.border = "1px solid #000";
+                this.replaceWith(newImage);
                 p2_hand[index] = newElem;
                 turn = "p1";
                 if (document.getElementById("hintContainer").style.display != 'none') {
@@ -538,8 +537,7 @@ async function view_p2_hand() {
 async function view_p1_hand() {
     const area = document.getElementById('p1_hand');
     p1_hand.forEach((elem, index) => {
-        const image = document.createElement("img");
-        image.src = imageCache[0].src;
+        const image = imageCache[0].cloneNode(true);
         image.alt = "相手の手札";
         image.style.padding = "5px";
         image.style.border = "1px solid #000";
@@ -734,10 +732,8 @@ async function p1_exchange(targetElem) {
         return
     }
     // Create a new image for the dropped card area
-    const newImg = document.createElement("img");
-    newImg.src = imageCache[elementToNumber[p1_hand[targetElem]]].src;
+    let newImg = imageCache[elementToNumber[p1_hand[targetElem]]].cloneNode(true);
     newImg.style.border = "1px solid #000";
-    newImg.style.padding = "5px";
     document.getElementById("dropped_area_p1").appendChild(newImg);
     // Update the player's hand with a new element
     const img = document.querySelectorAll("#p1_hand img")[targetElem];
@@ -749,9 +745,7 @@ async function p1_exchange(targetElem) {
     const newElem = drawCard();
     p1_hand[targetElem] = newElem;
     // Update the image element's appearance
-    img.src = imageCache[0].src;
     img.alt = newElem;
-    img.style.padding = "5px"
     img.style.border = "1px solid #000"
     // Remove and reapply the 'selected' class to reset the state
     img.classList.remove("selected");
@@ -954,8 +948,7 @@ async function checkRon(droppedCard) {
             document.getElementById("hint_button").style.display = "none"; // 非表示
             const dropped = document.querySelectorAll("#dropped_area_p1 img");
             const selectCard = dropped[dropped.length - 1];
-            selectCard.style.border = "5px solid red";
-            selectCard.style.padding = "1px";
+            selectCard.classList.add("selected");
             p2_selected_card = [droppedCard];
             time = "make";
             // 捨て牌一覧の最後の要素を取得し、赤枠を付ける
