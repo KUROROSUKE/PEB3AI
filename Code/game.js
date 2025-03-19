@@ -522,12 +522,10 @@ async function view_p2_hand() {
                 this.classList.toggle("selected");
                 let newElem = drawCard();
                 const newBlob = imageCache[elementToNumber[newElem]];
-                const newImage = new Image();
-                newImage.src = URL.createObjectURL(newBlob);
-                newImage.alt = newElem;
-                newImage.style.padding = "5px";
-                newImage.style.border = "1px solid #000";
-                this.replaceWith(newImage);
+                this.src = URL.createObjectURL(newBlob);
+                this.alt = newElem;
+                this.style.padding = "5px";
+                this.style.border = "1px solid #000";
                 p2_hand[index] = newElem;
                 turn = "p1";
                 if (document.getElementById("hintContainer").style.display != 'none') {
@@ -1175,6 +1173,7 @@ function returnToStartScreen() {
     document.getElementById("p2_area").style.display = "none";
     document.getElementById("gameRuleButton").style.display = "block";
     document.getElementById("predictResultContainer").style.display = "none";
+    document.getElementById("centerLine").style.display = "block";
 }
 document.getElementById("startButton").addEventListener("click", function() {
     document.getElementById("startScreen").style.display = "none";
