@@ -279,7 +279,6 @@ function CanCreateMaterial(material) {
 
     // 使用可能なカードをすべて統合
     let allCards = new Set([...dropped_cards_p1, ...dropped_cards_p2 , ...p1_hand]);
-    allCards = deck.filter(card => !allCards.has(card));
     
 
     // 各カードの元素をカウント
@@ -290,11 +289,11 @@ function CanCreateMaterial(material) {
     // 必要な元素が揃っているか確認
     for (const element in requiredElements) {
         if (!availableElements[element] || availableElements[element] < requiredElements[element]) {
-            return true; // 必要な元素が不足している 「不足していなかったら」なのでここで反転させておく
+            return false; // 必要な元素が不足している 「不足していなかったら」なのでここで反転させておく
         }
     }
 
-    return false; // 全ての必要な元素が揃っている
+    return true; // 全ての必要な元素が揃っている
 }
 
 function getUsedMaterials() {
