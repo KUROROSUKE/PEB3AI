@@ -491,7 +491,9 @@ async function loadMaterials(url) {
 async function view_p2_hand() {
     const area = document.getElementById('p2_hand')
     p2_hand.forEach((elem, index) => {
-        const image = imageCache[elementToNumber[elem]].cloneNode(true);
+        const blob = imageCache[elementToNumber[elem]];
+        const image = new Image();
+        image.src = URL.createObjectURL(blob);
         image.alt = elem;
         image.style.padding = "5px";
         image.style.border = "1px solid #000";
@@ -509,7 +511,9 @@ async function view_p2_hand() {
                 }}
             if (turn == "p2" && time == "game") {
                 dropped_cards_p2.push(this.alt);
-                const img = imageCache[elementToNumber[this.alt]].cloneNode(true);
+                const blob = imageCache[elementToNumber[this.alt]];
+                const img = new Image();
+                img.src = URL.createObjectURL(blob);
                 img.alt = this.alt;
                 img.style.border = "1px solid #000";
                 document.getElementById("dropped_area_p2").appendChild(img);
@@ -517,7 +521,9 @@ async function view_p2_hand() {
                 this.classList.add("selected");
                 this.classList.toggle("selected");
                 let newElem = drawCard();
-                let newImage = imageCache[elementToNumber[newElem]].cloneNode(true);
+                const newBlob = imageCache[elementToNumber[newElem]];
+                const newImage = new Image();
+                newImage.src = URL.createObjectURL(newBlob);
                 newImage.alt = newElem;
                 newImage.style.padding = "5px";
                 newImage.style.border = "1px solid #000";
@@ -537,7 +543,9 @@ async function view_p2_hand() {
 async function view_p1_hand() {
     const area = document.getElementById('p1_hand');
     p1_hand.forEach((elem, index) => {
-        const image = imageCache[0].cloneNode(true);
+        const blob = imageCache[0];
+        const image = new Image();
+        image.src = URL.createObjectURL(blob);
         image.alt = "相手の手札";
         image.style.padding = "5px";
         image.style.border = "1px solid #000";
@@ -732,7 +740,10 @@ async function p1_exchange(targetElem) {
         return
     }
     // Create a new image for the dropped card area
-    let newImg = imageCache[elementToNumber[p1_hand[targetElem]]].cloneNode(true);
+    
+    const blob = imageCache[elementToNumber[p1_hand[targetElem]]];
+    const newImg = new Image();
+    newImg.src = URL.createObjectURL(blob);
     newImg.style.border = "1px solid #000";
     document.getElementById("dropped_area_p1").appendChild(newImg);
     // Update the player's hand with a new element
@@ -916,15 +927,32 @@ function resetGame() {
     }
 }
 
-function preloadImages() {
+async function preloadImages() {
     let imageNumbers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 26, 29, 30, 53];
 
-    imageNumbers.forEach(num => {
-        let img = new Image();
-        img.src = `../images/${num}.webp`;
-        imageCache[num] = img;
-    });
+    for (let num of imageNumbers) {
+        try {
+            const imageUrl = `../images/${num}.webp`;
+            console.log(`Fetching image: ${imageUrl}`);
+
+            const response = await fetch(imageUrl);
+            console.log(`Response status for ${num}: ${response.status}`);
+
+            if (!response.ok) throw new Error(`Failed to load image: ${num}`);
+
+            const blob = await response.blob();
+            if (!blob) throw new Error(`Blob is null for image ${num}`);
+
+            imageCache[num] = blob;
+            console.log(`Loaded image: ${num}`, blob);
+        } catch (error) {
+            console.error(`Image loading error: ${num}`, error);
+        }
+    }
 }
+
+
+
 
 async function init_json() {
     materials = await loadMaterials("https://kurorosuke.github.io/compounds/obf_standard_min.json");
@@ -1135,15 +1163,8 @@ document.addEventListener('DOMContentLoaded', function () {
     init_json();
     loadModel();
     initializeMaterials();
-    deck = [...elements, ...elements];
-    deck = shuffle(deck);
     addInputModelDiv();
     addLoadingButton();
-    random_hand();
-    view_p1_hand();
-    view_p2_hand();
-    turn = Math.random()>=0.5 ? "p1" : "p2";
-    if (turn == "p1") {p1_action()}
 })
 
 function returnToStartScreen() {
@@ -1163,6 +1184,13 @@ document.getElementById("startButton").addEventListener("click", function() {
     document.getElementById("p2_area").style.display = "block";
     document.getElementById("gameRuleButton").style.display = "none";
     document.getElementById("predictResultContainer").style.display = "none";
+    deck = [...elements, ...elements];
+    deck = shuffle(deck);
+    random_hand();
+    view_p1_hand();
+    view_p2_hand();
+    turn = Math.random()>=0.5 ? "p1" : "p2";
+    if (turn == "p1") {p1_action()}
 });
 
 
