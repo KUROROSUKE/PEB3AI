@@ -126,9 +126,10 @@
     text-align: center;
     left: 5%;
     width: 90%;
-    height: 15%;
-    margin-bottom: 10px;
-    border: 1px solid #333333;
+    height: 25%;
+    padding: 10px 0 10px 0;
+    margin-bottom: 5vh;
+    border: 2px solid #333333;
     border-radius: 10px;
     font-size: 2vh;
 }
@@ -138,12 +139,14 @@
     left: 20%;
     top: 5%;
     width: 60%;
-    height: 90%;
+    height: 80%;
     background: white;
     border: 1px solid black;
     padding: 0 0 0 5%;
     z-index: 102;
+    overflow-y: scroll;
 }
+
 #buttonModal {
     display: none;
     position: fixed;
@@ -155,12 +158,6 @@
     background: white;
     border: 1px solid black;
     z-index: 103;
-}
-#inputTag {
-    display: inline;
-    width: calc(80% - 2vw);
-    margin: 10px 0 2vh 0;
-    font-size: 5vh;
 }
 #inputButton {
     display: inline;
@@ -184,9 +181,6 @@
     justify-content: center;
     z-index: 100;
 }
-#predictResultContainer {
-    display: inline;
-}
 #NewModelOptionsDiv{
     left: 5%;
     width: 90%;
@@ -203,30 +197,34 @@
     background-color: white;
     left: 5%;
     width: 90%;
-    height: 15%;
-    margin-bottom: 10px;
+    height: 10%;
 }
-
 #inputTag {
     flex-grow: 1;
-    width: auto; /* 親要素に合わせる */
-    margin-right: 10px;
-    font-size: 4vh;
-    padding: 10px;
-    border-radius: 5px;
+    width: auto;
+    display: inline;
 }
 
 #inputButton {
-    font-size: 3vh;
-    padding: 10px 20px;
-    border-radius: 5px;
     cursor: pointer;
     background-color: #ddd;
+    font-size: 80%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#inputTag, #inputButton {
+    height: 60%; /* 共通の高さを指定 */
+    border-radius: 5px;
+}
+.selected {
+    border: 4px solid red; /* Inner border effect */
+    padding: 3px; /* Adjust padding to ensure the border is inside */
+    box-shadow: inset 0 0 5px 3px rgba(255, 0, 0); /* Inner glow effect */
 }
 
-#loadingModelButton {
-    display: none;
-}
+
+
 #predictTable {
     width: 80%;
     margin: 20px auto;
@@ -257,19 +255,15 @@
 }
 
 #predictResultContainer {
+    display: none;
     text-align: center;
     padding: 20px;
     background-color: rgba(255, 255, 255, 0.9);
-    border-radius: 10px;
-    display: inline-block;
-    box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2);
 }
 #hintContainer {
     text-align: center;
     padding: 20px;
     background-color: rgba(255, 255, 255, 0.9);
-    border-radius: 10px;
-    box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2);
     margin-top: 10px;
 }
 
@@ -302,7 +296,10 @@
     transition: background-color 0.3s ease;
 }
 
-
+#loadingModelButtonDiv {
+    height: 3vh;
+    margin: 0 5% 5% 0;
+}
 
 @media screen and (max-width: 730px) {
     #winSettingsModal {
@@ -349,11 +346,12 @@
         left: 0%;
         top: 0%;
         width: 100%;
-        height: 100%;
+        height: 85%;
         background: white;
         border: 1px solid black;
         padding: 0 0 0 5%;
         z-index: 102;
+        overflow-y: auto;
     }
     #buttonModal {
         display: none;
