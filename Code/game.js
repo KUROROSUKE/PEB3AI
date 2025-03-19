@@ -67,7 +67,6 @@ async function loadModel(url=null, NameOfModel=null) {
         }} else  {
             const models = await tf.io.listModels();
             modelName = NameOfModel==null ? extractModelName(url) : NameOfModel;
-            console.log(modelName);
             if (models[`indexeddb://${modelName}`]) {
                 model = await tf.loadLayersModel(`indexeddb://${modelName}`); // IndexedDB からロード
                 console.log("ローカルの学習済みモデルをロードしました");
@@ -98,7 +97,6 @@ async function addTrainingData(playerData, generatedMaterialIndex, who) {
     var total = inputData.reduce(function(sum, element){return sum + element;}, 0);
     inputData.push(who);
     inputData.push(total*2 + Number(!who) + 1);
-    console.log("学習用データ:", inputData);
 
     // データをTensorに変換
     const inputTensor = tf.tensor2d([inputData], [1, 26]);
@@ -155,12 +153,10 @@ async function trainModel() {
     }
 
     if (isTraining) {
-        console.log("現在学習中です...");
         return;
     }
 
     isTraining = true;
-    console.log("モデルの追加学習を開始...");
 
     // 🎯 **モデルのコンパイル（初期学習用）**
     model.compile({
@@ -168,9 +164,6 @@ async function trainModel() {
         loss: 'categoricalCrossentropy',
         metrics: ['accuracy']
     });
-
-    // 🎯 **モデルの出力サイズを確認**
-    console.log("model.outputShape:", model.outputShape);
 
     if (!model.outputShape || model.outputShape.length < 2) {
         console.error("モデルの outputShape が不正です:", model.outputShape);
@@ -267,34 +260,63 @@ async function trainModel() {
     await saveModel();
 }
 
+function removeCards(tmpDeck, allCards) {
+    // allCards の出現回数をカウント
+    const countMap = new Map();
+    for (const card of allCards) {
+        countMap.set(card, (countMap.get(card) || 0) + 1);
+    }
+
+    // tmpDeck から allCards に含まれるカードを個数分だけ削除
+    return tmpDeck.filter(card => {
+        if (countMap.has(card) && countMap.get(card) > 0) {
+            countMap.set(card, countMap.get(card) - 1); // 1つ減らす
+            return false; // 除外
+        }
+        return true; // 残す
+    });
+}
 
 
-function CanCreateMaterial(material) {
+async function CanCreateMaterial(material) {
+    if (!material) {
+        console.error("❌ Error: Material is undefined!");
+        return true;  // 作れないと判定
+    }
+    
     // 必要な元素リスト
-    console.log(material)
     const requiredElements = material.d;
 
     // 使用可能な元素のカウント
-    const availableElements = {};
+    let availableElements = {};
 
-    // 使用可能なカードをすべて統合
-    let allCards = new Set([...dropped_cards_p1, ...dropped_cards_p2 , ...p1_hand]);
-    
+    // すべてのカードを統合
+    let allCards = [...p1_hand, ...dropped_cards_p1, ...dropped_cards_p2];
+    let tmpDeck = [...elements, ...elements];
+    tmpDeck = await removeCards(tmpDeck, allCards)
 
     // 各カードの元素をカウント
-    allCards.forEach(card => {
+    tmpDeck.forEach(card => {
         availableElements[card] = (availableElements[card] || 0) + 1;
     });
 
-    // 必要な元素が揃っているか確認
+    // `c == 0` の場合は作れないと判断
+    if (material.c == 0) {
+        console.log("Material has c == 0, returning true.");
+        return true;
+    }
+
+    // 必要な元素がすべて揃っているかチェック
     for (const element in requiredElements) {
         if (!availableElements[element] || availableElements[element] < requiredElements[element]) {
-            return false; // 必要な元素が不足している 「不足していなかったら」なのでここで反転させておく
+            console.log(`Missing element: ${element}, returning true.`);
+            return true; // 必要な元素が不足している場合
         }
     }
 
-    return true; // 全ての必要な元素が揃っている
+    return false; // すべての必要な元素が揃っている場合
 }
+
 
 function getUsedMaterials() {
     // localStorage から "materials" のデータを取得
@@ -404,12 +426,6 @@ async function runModel(who,madeMaterialNum) {
     // 最大値に対応するキーを検索
     var predictedClass = Object.keys(weightedResults).find(key => weightedResults[key] === confidence);
 
-    console.log(predictedClass)
-    console.log(materials[predictedClass]);
-
-    
-
-
     try {while (await CanCreateMaterial(materials[predictedClass])) {
         // weightedResults から現在の predictedClass を削除
         delete weightedResults[predictedClass];
@@ -424,20 +440,17 @@ async function runModel(who,madeMaterialNum) {
     
         // 最大値に対応するキーを検索（数値型に変換）
         var predictedClass = Object.keys(weightedResults).find(key => weightedResults[key] === confidence);
-        // 結果を表示
-        console.log(`推論結果: クラス ${predictedClass}, 信頼度: ${confidence}`);
-        document.getElementById("predictResult").innerHTML = `予測結果：${materials[predictedClass].a}・信頼度：${confidence}`;
-
-
-        return { predictedClass, confidence };
     }
     } catch {
         console.log(materials[predictedClass])
         if (materials[predictedClass] == null) {
         console.log("モデルと化合物のバージョンが異なります")
     }}
-    
-
+    if (predictedClass<=materials.length) {        
+            // 結果を表示
+            console.log(`推論結果: クラス ${predictedClass}, 信頼度: ${confidence}`);
+            document.getElementById("predictResult").innerHTML = `予測結果：${materials[predictedClass].a}・信頼度：${confidence}`;
+        }
 }
 
 
@@ -449,7 +462,6 @@ async function saveModel() {
     }
 
     try {
-        console.log(modelName)
         console.log(`indexeddb://${modelName}`)
         await model.save(`indexeddb://${modelName}`); // IndexedDB に保存
         console.log("学習済みモデルを IndexedDB に保存しました");
@@ -636,7 +648,6 @@ async function done(who, isRon = false) {
     document.getElementById("hintContainer").style.display = "none";
 
     const p2_make_material = await p2_make();
-    console.log(p2_make_material.f);
     predictedMaterialP2 = await runModel(who=="p1" ? 0:1, madeMaterialNum=p2_make_material.f);
     const p1_make_material = await p1_make(predictedMaterialP2);
 
@@ -930,10 +941,8 @@ async function preloadImages() {
     for (let num of imageNumbers) {
         try {
             const imageUrl = `../images/${num}.webp`;
-            console.log(`Fetching image: ${imageUrl}`);
 
             const response = await fetch(imageUrl);
-            console.log(`Response status for ${num}: ${response.status}`);
 
             if (!response.ok) throw new Error(`Failed to load image: ${num}`);
 
@@ -941,7 +950,6 @@ async function preloadImages() {
             if (!blob) throw new Error(`Blob is null for image ${num}`);
 
             imageCache[num] = blob;
-            console.log(`Loaded image: ${num}`, blob);
         } catch (error) {
             console.error(`Image loading error: ${num}`, error);
         }
@@ -1263,12 +1271,8 @@ async function addOptions() {
 
         const date = document.createElement("p");
         getModelsDate(elem).then(data => {
-            console.log(`Model: ${elem}, Date: ${data}`);
             date.textContent = data || "未取得";
         });
-
-        
-        
 
         let selectButton = document.createElement("button");
         selectButton.textContent = "選択";
@@ -1465,12 +1469,10 @@ function findClosestMaterials(hand) {
 async function getModelsDate(modelName) {
     try {
         const models = await tf.io.listModels();
-        console.log("Models List:", models);
 
         const modelInfo = models[`indexeddb://${modelName}`];
 
         if (!modelInfo) {
-            console.warn(`Model ${modelName} not found in IndexedDB.`);
             return "N/A";
         }
 
