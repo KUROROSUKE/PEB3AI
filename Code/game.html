@@ -15,7 +15,7 @@
 </head>
 <body>
     <div id="startScreen">
-        <button id="startButton">スタート</button>
+        <button id="startButton" style="display: none;">スタート</button>
         <img src="../images/setting_icon.webp" id="setting_icon" alt="setting">
         <p id="Attention">モデルのロードに失敗しました</p>
         <p id="Attention2">compoundsの取得に失敗しました</p>
@@ -68,7 +68,7 @@
         </table>
     </div>
     <div id="winSettingsModal">
-        <p>more detail: <a href="https://github.com/kurorosuke/EB3/GameRules.html">GameRules</a></p>
+        <p>more detail: <a href="https://kurorosuke.github.io/EB3/GameRules.html">GameRules</a></p>
         <label>win point: <input type="number" id="winPointInput" value="250" min="1"></label><br>
         <label>win turn: <input type="number" id="winTurnInput" value="10" min="1"></label><br>
         <div style="padding:0 5% 0 0">
@@ -91,7 +91,7 @@
             <button onclick="closeWinSettings()" style="padding: 10px 20px; font-size: 1.2em; width: 45%;">取消</button>
         </div>
         <hr>
-        <a href="https://forms.gle/6sKpeCiFVbJMErLj9" id="inquiry">「元素ゲーム」問い合わせフォーム</a>
+        <a href="https://forms.gle/6sKpeCiFVbJMErLj9" id="inquiry">問い合わせフォーム</a>
     </div>
     <button id="gameRuleButton" onclick="showRules()">ゲームルール</button>
     <!-- ルール説明モーダル -->

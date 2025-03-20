@@ -1164,12 +1164,14 @@ function addLoadingButton() {
 
 
 document.addEventListener('DOMContentLoaded', function () {
-    preloadImages();
-    init_json();
-    loadModel();
-    initializeMaterials();
-    addInputModelDiv();
-    addLoadingButton();
+    preloadImages().then(elem => {
+        document.getElementById("startButton").style.display="inline";
+        init_json();
+        loadModel();
+        initializeMaterials();
+        addInputModelDiv();
+        addLoadingButton();
+    })
 })
 
 function returnToStartScreen() {
