@@ -81,7 +81,7 @@ async function loadModel(url=null, NameOfModel=null) {
         }
         addOptions();
         outputNum = model.outputs[0].shape[1];
-        if (outputNum!=materials.length) {document.getElementById("Attention4").style.display = "inline";} else {document.getElementById("Attention4").style.display = "none";}
+        if (outputNum!=materials.length) {const att = document.getElementById("Attention4");att.innerHTML = `モデルは出力${outputNum}個に対応していますが、compoundsは${materials.length}個です`;att.style.display="inline";} else {document.getElementById("Attention4").style.display = "none";}
         document.getElementById("Attention").style.display = "none";
     } catch (error) {
         console.error("モデルのロードに失敗しました", error);
@@ -963,7 +963,7 @@ async function preloadImages() {
 
 async function init_json() {
     materials = await loadMaterials("https://kurorosuke.github.io/compounds/obf_standard_min.json");
-    if (outputNum!=materials.length) {document.getElementById("Attention4").style.display = "inline";} else {document.getElementById("Attention4").style.display = "none";}
+    if (outputNum!=materials.length) {const att = document.getElementById("Attention4");att.innerHTML = `モデルは出力${outputNum}個に対応していますが、compoundsは${materials.length}個です`;att.style.display="inline";} else {document.getElementById("Attention4").style.display = "none";}
 }
 
 
@@ -1056,7 +1056,7 @@ async function saveWinSettings() {
         var compoundsURL = document.getElementById("compoundsURL").value;
     }
     materials = await loadMaterials(compoundsURL);
-    if (outputNum!=materials.length) {document.getElementById("Attention4").style.display = "inline";} else {document.getElementById("Attention4").style.display = "none";}
+    if (outputNum!=materials.length) {const att = document.getElementById("Attention4");att.innerHTML = `モデルは出力${outputNum}個に対応していますが、compoundsは${materials.length}個です`;att.style.display="inline";} else {document.getElementById("Attention4").style.display = "none";}
 
     WIN_POINT = winPointInput;
     WIN_TURN = winTurnInput;
@@ -1274,6 +1274,9 @@ async function addOptions() {
             date.textContent = data || "未取得";
         });
 
+        const shape= document.createElement("p");
+
+
         let selectButton = document.createElement("button");
         selectButton.textContent = "選択";
         selectButton.id = newOption.id;
@@ -1454,19 +1457,11 @@ function findClosestMaterials(hand) {
 async function getModelsDate(modelName) {
     try {
         const models = await tf.io.listModels();
-
         const modelInfo = models[`indexeddb://${modelName}`];
-
         if (!modelInfo) {
             return "N/A";
         }
-
-        // `dateSaved` がない場合、 `lastModified` を利用
-        return modelInfo.dateSaved 
-            ? new Date(modelInfo.dateSaved).toLocaleString()
-            : (modelInfo.lastModified 
-                ? new Date(modelInfo.lastModified).toLocaleString() 
-                : "N/A");
+        return new Date(modelInfo.dateSaved).toLocaleString()
     } catch (error) {
         console.error(`Error fetching date for model ${modelName}:`, error);
         return "N/A";
