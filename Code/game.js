@@ -963,6 +963,7 @@ async function preloadImages() {
 
 async function init_json() {
     materials = await loadMaterials("https://kurorosuke.github.io/compounds/obf_standard_min.json");
+    outputNum = model.outputs[0].shape[1];
     if (outputNum!=materials.length) {const att = document.getElementById("Attention4");att.innerHTML = `モデルは出力${outputNum}個に対応していますが、compoundsは${materials.length}個です`;att.style.display="inline";} else {document.getElementById("Attention4").style.display = "none";}
 }
 
