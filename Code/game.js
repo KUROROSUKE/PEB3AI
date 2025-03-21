@@ -1,4 +1,5 @@
-
+const DB_NAME = "GameDB";
+const STORE_NAME = "GameStore";
 
 let p1_hand = []; let p2_hand = []
 let p1_point = 0; let p2_point = 0
@@ -28,11 +29,44 @@ let outputNum;
 
 const countTemplate = Object.fromEntries(Object.values(elementToNumber).map(num => [num, 0]));
 
-function convertToCount() {
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onerror = (event) => reject("DB open error");
+        request.onsuccess = (event) => resolve(event.target.result);
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME);
+            }
+        };
+    });
+}
+
+async function setItem(key, value) {
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    store.put(value, key);
+    return tx.complete;
+}
+
+async function getItem(key) {
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const store = tx.objectStore(STORE_NAME);
+    return new Promise((resolve, reject) => {
+        const request = store.get(key);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject("Get error");
+    });
+}
+
+async function convertToCount(array) {
     // テンプレートのコピーを作成
     let count = { ...countTemplate };
     // 配列内の各元素をカウント
-    dropped_cards_p2.forEach(elem => {
+    array.forEach(elem => {
         let num = elementToNumber[elem];
         if (num !== undefined) {
             count[num] += 1;
@@ -53,7 +87,7 @@ function extractModelName(url) {
 
 
 
-// 1. モデルをロード（localStorageを優先）
+// 1. モデルをロード（indexedDBを優先）
 async function loadModel(url=null, NameOfModel=null) {
     try {
         if (url == null){//最初にこれを読み込む
@@ -97,10 +131,12 @@ async function addTrainingData(playerData, generatedMaterialIndex, who) {
     }
 
     // 入力データを取得
+    console.log(`playerData: ${playerData}`)
     var inputData = await convertToCount(playerData);
     var total = inputData.reduce(function(sum, element){return sum + element;}, 0);
     inputData.push(who);
     inputData.push(total*2 + Number(!who) + 1);
+    console.log(`InputData: ${inputData}`)
 
     // データをTensorに変換
     const inputTensor = tf.tensor2d([inputData], [1, 26]);
@@ -134,20 +170,22 @@ function cosineSimilarity(vec1, vec2) {
 // 🎯 **最も近い物質を取得する関数**
 function findClosestMaterial(handVector) {
     let bestMatch = null;
-    let bestSimilarity = -1;
+    let bestSimilarity = 0; // 類似度が0より大きいもののみ対象にする
 
     materials.forEach((material, index) => {
         let materialVec = Object.values(material.d); // 元素のベクトル化
         let similarity = cosineSimilarity(handVector, materialVec);
 
+        // 類似度が 0 より大きく、かつ最大のものを採用
         if (similarity > bestSimilarity) {
             bestSimilarity = similarity;
             bestMatch = { index, similarity };
         }
     });
 
-    return bestMatch;
+    return bestMatch; // bestMatch が null のままなら見つかってない
 }
+
 
 // 3. モデルの追加学習
 async function trainModel() {
@@ -205,7 +243,8 @@ async function trainModel() {
 
     xs.forEach((handVector, index) => {
         // 🎯 **現在の手札に最も近い物質を探す**
-        let closestMaterial = findClosestMaterial(handVector.dataSync());
+        let closestMaterial = findClosestMaterials(p2_hand)[0];
+        console.log(closestMaterial)
 
         if (!closestMaterial) {
             console.warn(`手札 ${index} に対応する近い物質が見つかりません。スキップします。`);
@@ -213,6 +252,7 @@ async function trainModel() {
         }
 
         let materialIndex = closestMaterial.index;
+        console.log(materialIndex);
 
         console.log(`学習対象: 手札 ${index} → 近い物質: materials[${materialIndex}]`);
 
@@ -322,22 +362,18 @@ async function CanCreateMaterial(material) {
 }
 
 
-function getUsedMaterials() {
-    // localStorage から "materials" のデータを取得
-    let storedMaterials = localStorage.getItem("materials");
+async function getUsedMaterials() {
+    // indexedDB から "materials" のデータを取得
+    let storedMaterials = await getItem("materials");
 
     // データが null, 空文字, 空オブジェクトの場合は処理しない
     if (!storedMaterials || storedMaterials === "{}") {
         console.log("No valid materials data found.");
         return {};
     }
-
-    // JSON をパース
-    let materials = JSON.parse(storedMaterials);
-
     // 1回以上作成された（値が1以上の）物質のみを抽出
     let usedMaterials = Object.fromEntries(
-        Object.entries(materials).filter(([key, value]) => value > 0)
+        Object.entries(storedMaterials).filter(([key, value]) => value > 0)
     );
 
     return usedMaterials;
@@ -355,13 +391,13 @@ function calculatePseudoProbabilities(materials) {
     return probabilities;
 }
 
-function calculateWeightedProbabilities(probabilities, outputData) {
+async function calculateWeightedProbabilities(probabilities, outputData) {
     let weightedProbabilities = {};
 
     // 共通するキーがあれば掛け算し * 100、なければ outputData*0.1 にする
     for (let key in outputData) {
         if (probabilities.hasOwnProperty(key)) {
-            sumNs = new Int8Array(localStorage.getItem("sumNs"))
+            sumNs = await getItem("sumNs")
             weightedProbabilities[key] = (probabilities[key]*sumNs / (sumNs + 10) + outputData[key]) /2; //\frac{x}{x+c} という関数で0→0、∞→1となる関数。cで速さを調整可能。
         } else {
             weightedProbabilities[key] = outputData[key];
@@ -379,7 +415,7 @@ async function runModel(who,madeMaterialNum) {
     }
 
     // 入力データ
-    var inputData = await convertToCount();
+    var inputData = await convertToCount(dropped_cards_p2);
     var total = inputData.reduce(function(sum, element){return sum + element;}, 0);
     inputData.push(who);
     inputData.push(total*2 + Number(!who) +1);
@@ -393,7 +429,7 @@ async function runModel(who,madeMaterialNum) {
     let recordCreatedMaterials = getUsedMaterials();
     let pseudoProbability = calculatePseudoProbabilities(recordCreatedMaterials)
 
-    let weightedResults = calculateWeightedProbabilities(pseudoProbability, outputData);
+    let weightedResults = await calculateWeightedProbabilities(pseudoProbability, outputData);
 
     let sortedResults = Object.entries(weightedResults).sort((a, b) => b[1] - a[1]);
     let ShowMaterials = sortedResults.slice(0,3); // 最初の3つの要素を取得
@@ -429,6 +465,7 @@ async function runModel(who,madeMaterialNum) {
 
     // 最大値に対応するキーを検索
     var predictedClass = Object.keys(weightedResults).find(key => weightedResults[key] === confidence);
+    console.log(`予測した化合物のキー：${predictedClass}`)
 
     try {while (await CanCreateMaterial(materials[predictedClass])) {
         // weightedResults から現在の predictedClass を削除
@@ -630,19 +667,16 @@ async function get_dora() {
 }
 
 async function incrementMaterialCount(material) {
-    // localStorage から "materials" キーのデータを取得
-    let materialsData = localStorage.getItem("materials");
-
-    // JSONをパース（データがない場合は空のオブジェクトを設定）
-    let materials = materialsData ? JSON.parse(materialsData) : {};
+    // indexedDB から "materials" キーのデータを取得
+    let materialsData = await getItem("materials");
 
     // 指定された material の値を1増やす（存在しない場合は初期値1）
-    materials[material] = (materials[material] || 0) + 1;
+    materialsData[material] = (materials[material] || 0) + 1;
 
-    // 更新したオブジェクトをJSONに変換してlocalStorageに保存
-    localStorage.setItem("materials", JSON.stringify(materials));
-    var sumNs = new Int8Array(localStorage.getItem("sumNs"))
-    localStorage.setItem("sumNs", (sumNs)+1)
+    // 更新したオブジェクトをJSONに変換してindexedDBに保存
+    await setItem("materials", materialsData);
+    var sumNs = await getItem("sumNs");
+    await setItem("sumNs", sumNs+1);
 }
 
 
@@ -697,9 +731,8 @@ async function done(who, isRon = false) {
     document.getElementById("p1_explain").innerHTML = `生成物質：${p1_make_material[0].a}, 組成式：${p1_make_material[0].b}`;
 
     //モデルを学習
-    let playerData = convertToCount(dropped_cards_p2)
     let generatedMaterialIndex = p2_make_material.f
-    await addTrainingData(playerData, generatedMaterialIndex, who=="p1" ? 0:1);
+    await addTrainingData(p2_hand, generatedMaterialIndex, who=="p1" ? 0:1);
     await trainModel();
 
     await incrementMaterialCount(p2_make_material.a)
@@ -963,7 +996,7 @@ async function preloadImages() {
 
 async function init_json() {
     materials = await loadMaterials("https://kurorosuke.github.io/compounds/obf_standard_min.json");
-    outputNum = model.outputs[0].shape[1];
+    let outputNum = model.outputs[0].shape[1];
     if (outputNum!=materials.length) {const att = document.getElementById("Attention4");att.innerHTML = `モデルは出力${outputNum}個に対応していますが、compoundsは${materials.length}個です`;att.style.display="inline";} else {document.getElementById("Attention4").style.display = "none";}
 }
 
@@ -1011,12 +1044,11 @@ async function checkRon(droppedCard) {
         done("p1", true);
     }
 }
-
-function updateGeneratedMaterials(materialName) {
+async function updateGeneratedMaterials(materialName) {
     if (!materialName || materialName === "なし") return;
 
-    // LocalStorage からデータを取得（なければ空のオブジェクト）
-    let generatedMaterials = JSON.parse(localStorage.getItem("generatedMaterials")) || {};
+    // indexedDB からデータを取得（なければ空のオブジェクト）
+    let generatedMaterials = await getItem("generatedMaterials") || {};
 
     // 物質のカウントを更新
     if (generatedMaterials[materialName]) {
@@ -1025,8 +1057,8 @@ function updateGeneratedMaterials(materialName) {
         generatedMaterials[materialName] = 1;
     }
 
-    // LocalStorage に保存
-    localStorage.setItem("generatedMaterials", JSON.stringify(generatedMaterials));
+    // indexedDB に保存
+    await setItem("generatedMaterials", generatedMaterials);
 }
 
 //設定画面
@@ -1084,20 +1116,20 @@ async function findMostPointMaterial() {
     }
 }
 
-function initializeMaterials() {
-    // localStorage に "materials" が存在しない場合
-    if (!localStorage.getItem("materials")) {
+async function initializeMaterials() {
+    // indexedDB に "materials" が存在しない場合
+    if (!(await getItem("materials"))) {
         // materials 内の各オブジェクトの a キーの値をキーとし、値を 0 にするオブジェクトを作成
         let initialMaterials = {};
         materials.forEach(item => {
             initialMaterials[item.a] = 0;
         });
 
-        // 作成したオブジェクトを localStorage に保存
-        localStorage.setItem("materials", JSON.stringify(initialMaterials));
+        // 作成したオブジェクトを indexedDB に保存
+        await setItem("materials", initialMaterials);
     }
-    if (!localStorage.getItem("sumNs")) {
-        localStorage.setItem("sumNs", 0);
+    if (!(await getItem("sumNs"))) {
+        await setItem("sumNs", 0);
     }
 }
 
@@ -1166,17 +1198,15 @@ function addLoadingButton() {
     document.getElementById("modelModals").appendChild(NewModelOption);
 }
 
-
-document.addEventListener('DOMContentLoaded', function () {
-    preloadImages().then(elem => {
-        document.getElementById("startButton").style.display="inline";
-        init_json();
-        loadModel();
-        initializeMaterials();
-        addInputModelDiv();
-        addLoadingButton();
-    })
-})
+document.addEventListener('DOMContentLoaded', async function () {
+    await preloadImages();
+    await loadModel();                  // ✅ モデルロードを先に
+    await init_json();                 // ✅ その後、modelが存在した状態で使用
+    await initializeMaterials();
+    addInputModelDiv();
+    addLoadingButton();
+    document.getElementById("startButton").style.display = "inline";
+});
 
 function returnToStartScreen() {
     document.getElementById("startScreen").style.display = "flex";
@@ -1370,7 +1400,7 @@ async function downloadModel(NameOfModel) {
         // IndexedDB からモデルを取得
         const model = await tf.loadLayersModel(`indexeddb://${NameOfModel}`);
 
-        // モデルを localStorage にエクスポート
+        // モデルを indexedDB にエクスポート
         await model.save(`downloads://${NameOfModel}`);
         alert(`${NameOfModel} をダウンロードしました`)
 
