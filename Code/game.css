@@ -35,7 +35,7 @@
 }
 /* 設定 */
 #setting_icon {
-    position: absolute;
+    position: fixed;
     height: 6vh;
     right: 5vw;
     bottom: 5vh;
