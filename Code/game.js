@@ -1,12 +1,14 @@
+
+
 let p1_hand = []; let p2_hand = []
 let p1_point = 0; let p2_point = 0
-let p1_selected_card = []; let p2_selected_card = []
+let p1_selected_card = []; let p2_selected_card = [];
 
 const card_num = 8
 let WIN_POINT = card_num*30+10
 let WIN_TURN = 10
 
-let dropped_cards_p1 = []; let dropped_cards_p2 = []
+let dropped_cards_p1 = []; let dropped_cards_p2 = [];
 
 let turn = "p1"
 let time = "game"
@@ -22,9 +24,9 @@ let imageCache = {}
 
 let model;
 let modelName;
+let outputNum;
 
 const countTemplate = Object.fromEntries(Object.values(elementToNumber).map(num => [num, 0]));
-
 
 function convertToCount() {
     // テンプレートのコピーを作成
@@ -56,12 +58,12 @@ async function loadModel(url=null, NameOfModel=null) {
     try {
         if (url == null){//最初にこれを読み込む
             const models = await tf.io.listModels();
-            modelName = "standardModel";
-            if (models['indexeddb://standardModel']) {
-                model = await tf.loadLayersModel('indexeddb://standardModel'); // IndexedDB からロード
+            modelName = "standardModel2";
+            if (models['indexeddb://standardModel2']) {
+                model = await tf.loadLayersModel('indexeddb://standardModel2'); // IndexedDB からロード
                 console.log("ローカルの学習済みモデルをロードしました");
             } else {
-                model = await tf.loadLayersModel('https://kurorosuke.github.io/AI_models/model1/model.json'); // 外部モデルをロード
+                model = await tf.loadLayersModel('https://kurorosuke.github.io/AI_models/model2/model.json'); // 外部モデルをロード
                 console.log("サーバーからモデルをロードしました");
                 await saveModel();
         }} else  {
@@ -78,6 +80,8 @@ async function loadModel(url=null, NameOfModel=null) {
             await saveModel();
         }
         addOptions();
+        outputNum = model.outputs[0].shape[1];
+        if (outputNum!=materials.length) {document.getElementById("Attention4").style.display = "inline";} else {document.getElementById("Attention4").style.display = "none";}
         document.getElementById("Attention").style.display = "none";
     } catch (error) {
         console.error("モデルのロードに失敗しました", error);
@@ -386,13 +390,13 @@ async function runModel(who,madeMaterialNum) {
     const output = model.predict(inputData);
     let outputData = await output.data();
 
-    recordCreatedMaterials = getUsedMaterials()
-    pseudoProbability = calculatePseudoProbabilities(recordCreatedMaterials)
+    let recordCreatedMaterials = getUsedMaterials();
+    let pseudoProbability = calculatePseudoProbabilities(recordCreatedMaterials)
 
     let weightedResults = calculateWeightedProbabilities(pseudoProbability, outputData);
 
     let sortedResults = Object.entries(weightedResults).sort((a, b) => b[1] - a[1]);
-    ShowMaterials = sortedResults.slice(0,3); // 最初の3つの要素を取得
+    let ShowMaterials = sortedResults.slice(0,3); // 最初の3つの要素を取得
 
     // 作成した material の順位を取得
     let madeMaterialRank = sortedResults.findIndex(([key]) => key == madeMaterialNum) + 1; // 1位から数える
@@ -648,10 +652,10 @@ async function done(who, isRon = false) {
     document.getElementById("hintContainer").style.display = "none";
 
     const p2_make_material = await p2_make();
-    predictedMaterialP2 = await runModel(who=="p1" ? 0:1, madeMaterialNum=p2_make_material.f);
+    let predictedMaterialP2 = await runModel(who=="p1" ? 0:1, p2_make_material.f);
     const p1_make_material = await p1_make(predictedMaterialP2);
 
-    dora = await get_dora();
+    let dora = await get_dora();
     console.log(`ドラ: ${dora}`);
     
     let thisGame_p2_point = p2_make_material.c;
@@ -725,7 +729,7 @@ async function done(who, isRon = false) {
             returnToStartScreen()
             p1_point = 0;
             p2_point = 0;
-            numTurn = 0;
+            numTurn = 1;
             resetGame();
             button.style.display = "none"
             const newButton = button.cloneNode(true);
@@ -900,7 +904,6 @@ function resetGame() {
     p2_selected_card = [];
     time = "game";
     turn = Math.random() <= 0.5 ? "p1" : "p2";
-    numTurn = 1;  // ターンカウントをリセット
 
     document.getElementById("p1_point").innerHTML = `ポイント：${p1_point}`;
     document.getElementById("p1_explain").innerHTML = "　";
@@ -911,7 +914,6 @@ function resetGame() {
     document.getElementById("generate_button").style.display = "inline";
     document.getElementById("done_button").style.display = "none";
     document.getElementById("nextButton").style.display = "none";
-
     deck = [...elements, ...elements];
     deck = shuffle(deck);
 
@@ -961,6 +963,7 @@ async function preloadImages() {
 
 async function init_json() {
     materials = await loadMaterials("https://kurorosuke.github.io/compounds/obf_standard_min.json");
+    if (outputNum!=materials.length) {document.getElementById("Attention4").style.display = "inline";} else {document.getElementById("Attention4").style.display = "none";}
 }
 
 
@@ -1053,6 +1056,7 @@ async function saveWinSettings() {
         var compoundsURL = document.getElementById("compoundsURL").value;
     }
     materials = await loadMaterials(compoundsURL);
+    if (outputNum!=materials.length) {document.getElementById("Attention4").style.display = "inline";} else {document.getElementById("Attention4").style.display = "none";}
 
     WIN_POINT = winPointInput;
     WIN_TURN = winTurnInput;
@@ -1162,7 +1166,6 @@ function addLoadingButton() {
 }
 
 
-
 document.addEventListener('DOMContentLoaded', function () {
     preloadImages().then(elem => {
         document.getElementById("startButton").style.display="inline";
@@ -1182,7 +1185,7 @@ function returnToStartScreen() {
     document.getElementById("p2_area").style.display = "none";
     document.getElementById("gameRuleButton").style.display = "block";
     document.getElementById("predictResultContainer").style.display = "none";
-    document.getElementById("centerLine").style.display = "block";
+    document.getElementById("centerLine").style.display = "none";
 }
 document.getElementById("startButton").addEventListener("click", function() {
     document.getElementById("startScreen").style.display = "none";
@@ -1192,13 +1195,8 @@ document.getElementById("startButton").addEventListener("click", function() {
     document.getElementById("p2_area").style.display = "block";
     document.getElementById("gameRuleButton").style.display = "none";
     document.getElementById("predictResultContainer").style.display = "none";
-    deck = [...elements, ...elements];
-    deck = shuffle(deck);
-    random_hand();
-    view_p1_hand();
-    view_p2_hand();
-    turn = Math.random()>=0.5 ? "p1" : "p2";
-    if (turn == "p1") {p1_action()}
+    document.getElementById("centerLine").style.display = "block";
+    resetGame();
 });
 
 
@@ -1305,28 +1303,13 @@ async function addOptions() {
         newOption.appendChild(saveButton);
         newOption.appendChild(deleteButton);
         newOption.appendChild(resetButton);
+        if (newOption.id == modelName) {newOption.style.background = "pink";}
         
 
         Selection.appendChild(newOption)
     })
 }
 
-function cosineSimilarity(vec1, vec2) {
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-
-    for (let i = 0; i < vec1.length; i++) {
-        dotProduct += vec1[i] * vec2[i];
-        normA += vec1[i] ** 2;
-        normB += vec2[i] ** 2;
-    }
-
-    normA = Math.sqrt(normA);
-    normB = Math.sqrt(normB);
-
-    return normA && normB ? dotProduct / (normA * normB) : 0;
-}
 
 function pseudoCosVec(materialNum1, materialNum2) {
     const vec1 = convertToVector(materials[materialNum1].d, element);
@@ -1368,7 +1351,7 @@ function applyModalSetting() {
         if (!removeTarget.includes(selectingModel)) {
             loadModel("notNull",selectingModel);
         } else {
-            loadModel("https://kurorosuke.github.io/AI_models/model1");
+            loadModel("https://kurorosuke.github.io/AI_models/model2");
         }
     }
     closeModelModal();

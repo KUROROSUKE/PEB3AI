@@ -10,7 +10,38 @@
     <link rel="stylesheet" href="game.css">
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-layers"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu"></script>
+    <script>
+        (async function () {
+            let backend = localStorage.getItem("preferredBackend");
+    
+            if (!backend) {
+                // 初回時: 最適なバックエンドを探す
+                const backends = ["webgl", "wasm", "cpu"];
+                for (const backendType of backends) {
+                    try {
+                        await import(`https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-${backendType}`);
+                        await tf.setBackend(backendType);
+                        await tf.ready();
+                        console.log(`Using ${backendType} backend`);
+                        localStorage.setItem("preferredBackend", backendType); // 保存
+                        return;
+                    } catch (error) {
+                        console.warn(`${backendType} backend failed to load`);
+                    }
+                }
+            } else {
+                // 2回目以降: localStorage のバックエンドをロード
+                const script = document.createElement("script");
+                script.src = `https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-${backend}`;
+                script.onload = async () => {
+                    await tf.setBackend(backend);
+                    await tf.ready();
+                    console.log(`Using cached ${backend} backend from localStorage`);
+                };
+                document.head.appendChild(script);
+            }
+        })();
+    </script>
     <!---<script src="https://iwb.jp/s/js/tiny-console.js"></script> --->
 </head>
 <body>
@@ -20,6 +51,7 @@
         <p id="Attention">モデルのロードに失敗しました</p>
         <p id="Attention2">compoundsの取得に失敗しました</p>
         <p id="Attention3">ローカルモデルの読み込みに失敗しました</p>
+        <p id="Attention4">モデルとcompoundsが合いません。別のcompoundsまたはモデルにしてください。</p>
     </div>
     <div id="p1_area" style="display: none;">
         <p id="p1_point">ポイント：0</p>
@@ -27,7 +59,7 @@
         <div id="p1_hand"></div>
     </div>
     <div id="dropped_area_p1" class="drop_area" style="display: none;"></div>
-    <hr style="border: 2px solid black; width:95%" id="centerLine">
+    <hr style="border: 2px solid black; width:95%;display:none" id="centerLine">
     <div id="dropped_area_p2" class="drop_area" style="display: none;"></div>
     <div id="p2_area" style="display: none;">
         <div id="p2_hand"></div>
