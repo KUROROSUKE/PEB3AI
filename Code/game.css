@@ -1,3 +1,19 @@
+#startScreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    text-align: center;
+    z-index: 98;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center center;
+}
 #p1_area {
     text-align: center;
 }
@@ -320,19 +336,7 @@
     }
     /* 背景 */
     #startScreen {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: url('../images/start_screen_mobile.webp') no-repeat center center;
-        background-size: contain;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        flex-direction: column;
-        text-align: center;
-        z-index: 98;
+        background-image: url('../images/start_screen_mobile.webp');
     }
     .modal-body {
         text-align: left;
@@ -369,19 +373,7 @@
 @media screen and (min-width: 731px) {
     /* 背景 */
     #startScreen {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: url('../images/start_screen_desktop.webp') no-repeat center center;
-        background-size: cover;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        flex-direction: column;
-        text-align: center;
-        z-index: 98;
+        background-image: url('../images/start_screen_desktop.webp');
     }
 }
 input[type="number"]{

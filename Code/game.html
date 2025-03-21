@@ -10,7 +10,9 @@
     <link rel="stylesheet" href="game.css">
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-layers"></script>
-    <script>
+    <link rel="preload" as="image" href="../images/start_screen_mobile.webp" media="(max-width: 730px)">
+    <link rel="preload" as="image" href="../images/start_screen_desktop.webp" media="(min-width: 731px)">
+    <script defer>
         (async function () {
             let backend = localStorage.getItem("preferredBackend");
     
