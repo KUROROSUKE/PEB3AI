@@ -1248,19 +1248,10 @@ async function getModelNames() {
 async function addOptions() {
     let models = await getModelNames();
     const Selection = document.getElementById("modelModals");
-    const ids = [];
-    if (Selection) {
-        const innerDivs = Selection.getElementsByTagName("div"); 
-        for (let div of innerDivs) {
-            if (div.id) {
-                ids.push(div.id); // idが存在する場合のみ追加
-            }
-        }
-    }
-    let remainingModels = models.filter(model => !ids.includes(model));
-    
-    
-    remainingModels.forEach(elem => {
+    Selection.innerHTML = "";
+    addInputModelDiv();
+    addLoadingButton();
+    models.forEach(elem => {
         const newOption = document.createElement("div");
         newOption.className = "modelModal";
         newOption.id = elem
@@ -1273,8 +1264,6 @@ async function addOptions() {
         getModelsDate(elem).then(data => {
             date.textContent = data || "未取得";
         });
-
-        const shape= document.createElement("p");
 
 
         let selectButton = document.createElement("button");
