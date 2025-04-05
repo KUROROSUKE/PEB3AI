@@ -537,6 +537,37 @@ async function loadMaterials(url) {
     }
 }
 
+async function showDown() {
+    console.log(p1_selected_card)
+    const area = document.getElementById('p1_hand');
+    area.innerHTML = "";
+    p1_hand.forEach((elem, index) => {
+        const number = elementToNumber[elem];
+        const blob = imageCache[number];
+        const image = new Image();
+        image.src = URL.createObjectURL(blob);
+        image.alt = elem;
+        image.style.padding = "5px";
+        image.style.border = "1px solid #000";
+
+        if (p1_selected_card.includes(elem)) {
+            image.classList.add("selected");
+        }
+
+        // クリックで選択の切り替えが必要なら、以下追加：
+        image.addEventListener("click", function () {
+            this.classList.toggle("selected");
+            if (this.classList.contains("selected")) {
+                p1_selected_card.push(elem);
+            } else {
+                const idx = p1_selected_card.indexOf(elem);
+                if (idx !== -1) p1_selected_card.splice(idx, 1);
+            }
+        });
+
+        area.appendChild(image);
+    });
+}
 
 
 // main code
@@ -637,6 +668,7 @@ async function p1_make(predictedMaterialP2) {
 
     // ポイントが高い順にソート
     makeable_material.sort((a, b) => b.c - a.c);
+    p1_selected_card = dictToArray(makeable_material[0].d);
 
     return makeable_material;
 }
@@ -743,6 +775,7 @@ async function done(who, isRon = false) {
     document.getElementById("done_button").style.display = "none";
     const button = document.getElementById("nextButton");
     button.style.display = "inline";
+    showDown();
 
     if (!winner) {
         console.log("次のゲーム");
@@ -876,6 +909,16 @@ function arrayToObj(array) {
         }
     })
     return result
+}
+
+function dictToArray(dict) {
+    const result = [];
+    for (const [key, value] of Object.entries(dict)) {
+        for (let i = 0; i < value; i++) {
+            result.push(key);
+        }
+    }
+    return result;
 }
 
 function shuffle(array) {
