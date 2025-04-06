@@ -102,11 +102,11 @@
         </table>
     </div>
     <div id="winSettingsModal">
-        <p>more detail: <a href="https://kurorosuke.github.io/EB3/GameRules.html">GameRules</a></p>
-        <label>win point: <input type="number" id="winPointInput" value="250" min="1"></label><br>
-        <label>win turn: <input type="number" id="winTurnInput" value="10" min="1"></label><br>
+        <p>詳しいルール： <a href="https://kurorosuke.github.io/EB3/GameRules.html">GameRules</a></p>
+        <label>コールドスコア： <input type="number" id="winPointInput" value="250" min="1"></label><br>
+        <label>ゲームターン数： <input type="number" id="winTurnInput" value="10" min="1"></label><br>
         <div style="padding:0 5% 0 0">
-            <label>compoundURL：
+            <label>化合物のURL(JSON)：
             <select id="compoundsSelection" onchange="showInputTag()">
                 <option value="compact">compact</option>
                 <option value="standard" selected>standard</option>
@@ -118,7 +118,7 @@
             </label>
         </div>
         <div style="padding:0 5% 0 0">
-            <label style="width:100%">AIModelURL：<button id="ModelDetail" onclick="showModelDetail()" style="margin:0 0 0 10px">設定</button><br>
+            <label style="width:100%">AIモデルのURL(JSON)：<button id="ModelDetail" onclick="showModelDetail()" style="margin:0 0 0 10px">設定</button><br>
         </div>
         <div style="display: flex; justify-content: space-between; padding: 5%;">
             <button onclick="saveWinSettings()" style="padding: 10px 20px; font-size: 1.2em; width: 45%;">適用</button>

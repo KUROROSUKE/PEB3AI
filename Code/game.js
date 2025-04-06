@@ -771,7 +771,17 @@ async function done(who, isRon = false) {
 
     // 勝者判定
     const winner = await win_check();
-    
+    const ExplainArea = document.getElementById("p1_explain");
+    if (winner=="p1") {
+        ExplainArea.innerHTML = "YOU LOSE";
+        ExplainArea.style.color = "blue";
+        ExplainArea.style.fontSize = "5vh";
+    } else if (winner=="p2") {
+        ExplainArea.innerHTML = "YOU WIN!";
+        ExplainArea.style.color = "red";
+        ExplainArea.style.fontSize = "5vh";
+    }
+
     document.getElementById("done_button").style.display = "none";
     const button = document.getElementById("nextButton");
     button.style.display = "inline";
