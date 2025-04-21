@@ -4,56 +4,60 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="元素を作成して遊ぶゲーム"/>
+    <meta http-equiv="Cache-Control" content="public, max-age=604800">
     <link rel="shortcut icon" href="https://kurorosuke.github.io/atom_game/favicon.ico" />
     <link rel="apple-touch-icon" href="https://kurorosuke.github.io/atom_game/touch-icon.png" sizes="180×180">
     <title>PEB3AI</title>
     <link rel="stylesheet" href="game.css">
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-layers"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu"></script>
     <link rel="preload" as="image" href="../images/start_screen_mobile.webp" media="(max-width: 730px)">
     <link rel="preload" as="image" href="../images/start_screen_desktop.webp" media="(min-width: 731px)">
-    <script defer>
-        (async function () {
-            let backend = localStorage.getItem("preferredBackend");
-    
-            if (!backend) {
-                // 初回時: 最適なバックエンドを探す
-                const backends = ["webgl", "wasm", "cpu"];
-                for (const backendType of backends) {
-                    try {
-                        await import(`https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-${backendType}`);
-                        await tf.setBackend(backendType);
-                        await tf.ready();
-                        console.log(`Using ${backendType} backend`);
-                        localStorage.setItem("preferredBackend", backendType); // 保存
-                        return;
-                    } catch (error) {
-                        console.warn(`${backendType} backend failed to load`);
-                    }
-                }
-            } else {
-                // 2回目以降: localStorage のバックエンドをロード
-                const script = document.createElement("script");
-                script.src = `https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-${backend}`;
-                script.onload = async () => {
-                    await tf.setBackend(backend);
-                    await tf.ready();
-                    console.log(`Using cached ${backend} backend from localStorage`);
-                };
-                document.head.appendChild(script);
+    <style>
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5em;
+            z-index: 9999;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 6px solid #ccc;
+            border-top-color: #333;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
             }
-        })();
-    </script>
+        }
+      </style>
     <!---<script src="https://iwb.jp/s/js/tiny-console.js"></script> --->
 </head>
 <body>
+    <div id="loading">
+        <div class="spinner"></div>
+        <p>読み込み中...</p>
+    </div>
     <div id="startScreen">
         <button id="startButton" style="display: none;">スタート</button>
         <img src="../images/setting_icon.webp" id="setting_icon" alt="setting">
-        <p id="Attention">モデルのロードに失敗しました</p>
-        <p id="Attention2">compoundsの取得に失敗しました</p>
-        <p id="Attention3">ローカルモデルの読み込みに失敗しました</p>
-        <p id="Attention4">モデルとcompoundsが合いません。別のcompoundsまたはモデルにしてください。</p>
+        <p id="Attention" style="display: none;">モデルのロードに失敗しました</p>
+        <p id="Attention2" style="display: none;">compoundsの取得に失敗しました</p>
+        <p id="Attention3" style="display: none;">ローカルモデルの読み込みに失敗しました</p>
+        <p id="Attention4" style="display: none;">モデルとcompoundsが合いません。別のcompoundsまたはモデルにしてください。</p>
     </div>
     <div id="p1_area" style="display: none;">
         <p id="p1_point">ポイント：0</p>
