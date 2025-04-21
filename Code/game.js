@@ -92,12 +92,12 @@ async function loadModel(url=null, NameOfModel=null) {
     try {
         if (url == null){//最初にこれを読み込む
             const models = await tf.io.listModels();
-            modelName = "standardModel2";
-            if (models['indexeddb://standardModel2']) {
-                model = await tf.loadLayersModel('indexeddb://standardModel2'); // IndexedDB からロード
+            modelName = "standardModel3";
+            if (models['indexeddb://standardModel3']) {
+                model = await tf.loadLayersModel('indexeddb://standardModel3'); // IndexedDB からロード
                 console.log("ローカルの学習済みモデルをロードしました");
             } else {
-                model = await tf.loadLayersModel('https://kurorosuke.github.io/AI_models/model2/model.json'); // 外部モデルをロード
+                model = await tf.loadLayersModel('https://kurorosuke.github.io/AI_models/model3/model.json'); // 外部モデルをロード
                 console.log("サーバーからモデルをロードしました");
                 await saveModel();
         }} else  {
@@ -1024,31 +1024,58 @@ function resetGame() {
 }
 
 async function preloadImages() {
-    let imageNumbers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 26, 29, 30, 53];
+    const imageNumbers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 26, 29, 30, 53];
 
-    for (let num of imageNumbers) {
+    // 画像読み込みのPromise配列を作成
+    const promises = imageNumbers.map(async (num) => {
         try {
             const imageUrl = `../images/${num}.webp`;
-
             const response = await fetch(imageUrl);
-
-            if (!response.ok) throw new Error(`Failed to load image: ${num}`);
-
             const blob = await response.blob();
-            if (!blob) throw new Error(`Blob is null for image ${num}`);
-
             imageCache[num] = blob;
         } catch (error) {
             console.error(`Image loading error: ${num}`, error);
         }
+    });
+
+    // 並列実行を待つ
+    await Promise.all(promises);
+    console.log("✅ 全画像のプリロード完了");
+}
+
+async function preloadBackgroundImages() {
+    const isMobile = window.innerWidth <= 730;
+    const url = isMobile
+        ? '../images/start_screen_mobile.webp'
+        : '../images/start_screen_desktop.webp';
+
+    try {
+        const response = await fetch(url, { cache: "force-cache" });
+        const blob = await response.blob();
+        const objectURL = URL.createObjectURL(blob);
+
+        // 一応画像読み込ませておく（なくてもOK）
+        const img = new Image();
+        img.src = objectURL;
+        img.style.display = "none";
+        document.body.appendChild(img);
+
+        // 💥 ここで背景にセット
+        const screen = document.getElementById("startScreen");
+        screen.style.backgroundImage = `url('${objectURL}')`;
+
+        console.log("✅ 背景画像読み込み＆設定完了:", url);
+    } catch (err) {
+        console.error("背景画像の読み込みに失敗", url, err);
     }
 }
 
 
 
 
+
 async function init_json() {
-    materials = await loadMaterials("https://kurorosuke.github.io/compounds/obf_standard_min.json");
+    materials = await loadMaterials("https://kurorosuke.github.io/compounds/obf_extended.json");
     let outputNum = model.outputs[0].shape[1];
     if (outputNum!=materials.length) {const att = document.getElementById("Attention4");att.innerHTML = `モデルは出力${outputNum}個に対応していますが、compoundsは${materials.length}個です`;att.style.display="inline";} else {document.getElementById("Attention4").style.display = "none";}
 }
@@ -1251,11 +1278,20 @@ function addLoadingButton() {
     document.getElementById("modelModals").appendChild(NewModelOption);
 }
 
+async function warmUpModel() {
+    const dummyInput = tf.tensor2d([Array(26).fill(0)], [1, 26]);
+    model.predict(dummyInput); // await しなくてOK、これだけでOK
+    console.log("✅ モデルのウォームアップ完了");
+}
+
+
 document.addEventListener('DOMContentLoaded', async function () {
+    await preloadBackgroundImages();
     await preloadImages();
-    await loadModel();                  // ✅ モデルロードを先に
-    await init_json();                 // ✅ その後、modelが存在した状態で使用
+    await loadModel();
+    await init_json();
     await initializeMaterials();
+    document.getElementById("loading").style.display = "none";
     addInputModelDiv();
     addLoadingButton();
     document.getElementById("startButton").style.display = "inline";
@@ -1427,7 +1463,7 @@ function applyModalSetting() {
         if (!removeTarget.includes(selectingModel)) {
             loadModel("notNull",selectingModel);
         } else {
-            loadModel("https://kurorosuke.github.io/AI_models/model2");
+            loadModel("https://kurorosuke.github.io/AI_models/model3");
         }
     }
     closeModelModal();
