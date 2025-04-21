@@ -2,8 +2,15 @@ import json
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
+element_weights = {
+    "H": 0.16666,
+    "C": 0.25,
+    "O": 0.25
+    # 他の元素は 1.0 のまま
+}
+
 # 🎯 **ファイルを読み込む**
-with open("compound/obs_standard_min.json", "r", encoding="utf-8") as file:
+with open("compound/obf_extended_min.json", "r", encoding="utf-8") as file:
     data = json.load(file)
 
 # 🎯 **元素リストを取得**
@@ -14,7 +21,10 @@ all_elements = sorted(all_elements)  # 一貫した順序でソート
 
 # 🎯 **物質をベクトル化**
 def convert_to_vector(composition):
-    return np.array([composition.get(el, 0) for el in all_elements])
+    return np.array([
+        composition.get(el, 0) * element_weights.get(el, 1.0)
+        for el in all_elements
+    ])
 
 vectors = np.array([convert_to_vector(m["d"]) for m in data["material"]])
 
