@@ -992,11 +992,13 @@ function resetGame() {
     turn = Math.random() <= 0.5 ? "p1" : "p2";
 
     document.getElementById("p1_point").innerHTML = `ポイント：${p1_point}`;
-    document.getElementById("p1_explain").innerHTML = "　";
     document.getElementById("p2_point").innerHTML = `ポイント：${p2_point}`;
     document.getElementById("p2_explain").innerHTML = "　";
     document.getElementById("predictResult").innerHTML = "　";
-    document.getElementById("p1_explain").style.color = "black";
+    const ExplainArea = document.getElementById("p1_explain")
+    ExplainArea.innerHTML = "　";
+    ExplainArea.style.color = "black";
+    ExplainArea.style.fontSize = "16px";
 
     document.getElementById("generate_button").style.display = "inline";
     document.getElementById("done_button").style.display = "none";
