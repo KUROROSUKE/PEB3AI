@@ -538,9 +538,12 @@ async function loadMaterials(url) {
 }
 
 async function showDown() {
-    console.log(p1_selected_card)
+    console.log(p1_selected_card);
     const area = document.getElementById('p1_hand');
     area.innerHTML = "";
+
+    const selectedCopy = [...p1_selected_card]; // 使用済みチェック用のコピー
+
     p1_hand.forEach((elem, index) => {
         const number = elementToNumber[elem];
         const blob = imageCache[number];
@@ -550,14 +553,17 @@ async function showDown() {
         image.style.padding = "5px";
         image.style.border = "1px solid #000";
 
-        if (p1_selected_card.includes(elem)) {
-            image.classList.add("selected");
+        // 同じ種類のカードを何枚も選べるように、1枚ずつ処理
+        const selectedIndex = selectedCopy.indexOf(elem);
+        if (selectedIndex !== -1) {
+            image.classList.add("selectedP1");
+            selectedCopy.splice(selectedIndex, 1); // 使用済みにする
         }
 
-        // クリックで選択の切り替えが必要なら、以下追加：
+        // クリックで選択の切り替え
         image.addEventListener("click", function () {
-            this.classList.toggle("selected");
-            if (this.classList.contains("selected")) {
+            this.classList.toggle("selectedP1");
+            if (this.classList.contains("selectedP1")) {
                 p1_selected_card.push(elem);
             } else {
                 const idx = p1_selected_card.indexOf(elem);
@@ -568,6 +574,7 @@ async function showDown() {
         area.appendChild(image);
     });
 }
+
 
 
 // main code
@@ -614,7 +621,8 @@ async function view_p2_hand() {
                 if (document.getElementById("hintContainer").style.display != 'none') {
                     document.getElementById("hint_button").click();
                 }
-                setTimeout(() => {p1_action()},500);
+                const dropCard = img.alt;
+                setTimeout(() => {checkRon(dropCard)},500);
             }
         })
         area.appendChild(image);
@@ -712,14 +720,16 @@ async function incrementMaterialCount(material) {
 }
 
 
-async function done(who, isRon = false) {
+async function done(who, isRon = false, ronMaterial) {
     document.getElementById("ron_button").style.display = "none";
     document.getElementById("hint_button").style.display = "none";
     document.getElementById("hintContainer").style.display = "none";
 
     const p2_make_material = await p2_make();
     let predictedMaterialP2 = await runModel(who=="p1" ? 0:1, p2_make_material.f);
-    const p1_make_material = await p1_make(predictedMaterialP2);
+    const p1_make_material = isRon ? ronMaterial : await p1_make(predictedMaterialP2);
+    console.log(p1_make_material)
+    p1_selected_card = dictToArray(p1_make_material[0].d);
 
     let dora = await get_dora();
     console.log(`ドラ: ${dora}`);
@@ -850,17 +860,35 @@ async function p1_exchange(targetElem) {
     img.classList.remove("selected");
     img.classList.add("selected");
     img.classList.toggle("selected");
-    // Switch the turn to "p1"
-    turn = "p2"
+    // Switch the turn to "p2"
+    turn = "p2";
     checkRon(exchange_element);
 }
+
+function selectCardsForMaterial(hand, materialDict) {
+    const selected = [];
+    const handCopy = [...hand]; // 元の手札を壊さないようにコピー
+
+    for (const [element, count] of Object.entries(materialDict)) {
+        let needed = count;
+        for (let i = 0; i < handCopy.length && needed > 0; i++) {
+            if (handCopy[i] === element) {
+                selected.push(element);
+                handCopy[i] = null; // 同じカードを何度も使わないようにマーク
+                needed--;
+            }
+        }
+    }
+    return selected;
+}
+
 
 async function p1_action() {
     if (turn !== "p1" || p1_is_acting) {
         return;  // すでに行動中なら何もしない
     }
     p1_is_acting = true;  // 行動開始
-    
+
     // フィルタリング
     const highPointMaterials = materials.filter(material => material.c > 20);
     
@@ -976,7 +1004,7 @@ document.getElementById("generate_button").addEventListener("click", function ()
         document.getElementById("hintContainer").style.display = "none"; // 非表示
         document.getElementById("hint_button").style.display = "none"; // 非表示
         time = "make"
-        const newRonButton = document.getElementById("ron_button").style.display = "none";
+        document.getElementById("ron_button").style.display = "none";
         done("p2");
     }
 })
@@ -1087,46 +1115,60 @@ async function init_json() {
 
 async function checkRon(droppedCard) {
     // P2のロン判定
-    const possibleMaterialsP2 = await search_materials(arrayToObj([...p2_hand, droppedCard]));
-    const validMaterialsP2 = possibleMaterialsP2.filter(material => material.d[droppedCard]);
-    if (validMaterialsP2.length > 0) {
-        const ronButton = document.getElementById("ron_button");
-        ronButton.style.display = "inline";
-        ronButton.replaceWith(ronButton.cloneNode(true));
-        const newRonButton = document.getElementById("ron_button");
+    if (turn=="p2"){
+        const possibleMaterialsP2 = await search_materials(arrayToObj([...p2_hand, droppedCard]));
+        const validMaterialsP2 = possibleMaterialsP2.filter(material => material.d[droppedCard]);
+        if (validMaterialsP2.length > 0) {
+            const ronButton = document.getElementById("ron_button");
+            ronButton.style.display = "inline";
+            ronButton.replaceWith(ronButton.cloneNode(true));
+            const newRonButton = document.getElementById("ron_button");
 
-        newRonButton.addEventListener("click", function () {
-            newRonButton.style.display = "none";
-            document.getElementById("hintContainer").style.display = "none"; // 非表示
-            document.getElementById("hint_button").style.display = "none"; // 非表示
-            const dropped = document.querySelectorAll("#dropped_area_p1 img");
-            const selectCard = dropped[dropped.length - 1];
-            selectCard.classList.add("selected");
-            p2_selected_card = [droppedCard];
+            newRonButton.addEventListener("click", function () {
+                newRonButton.style.display = "none";
+                const dropped = document.querySelectorAll("#dropped_area_p1 img");
+                const selectCard = dropped[dropped.length - 1];
+                selectCard.classList.add("selected");
+                p2_selected_card = [droppedCard];
+                time = "make";
+                done("p2", true);
+            });
+        }
+    } else if (turn=="p1"){
+        console.log("P1 ron check");
+        // P1のロン判定（捨てられたカードを含める）
+        const possibleMaterialsP1 = await search_materials(arrayToObj([...p1_hand, droppedCard]));
+        let validMaterialsP1 = [];
+        if (possibleMaterialsP1.length > 0) {
+            // 最も高いポイントの物質を選ぶ
+            const maxMaterial = possibleMaterialsP1.reduce((max, m) => m.c > max.c ? m : max);
+
+            // 条件に合えば validMaterialsP1 に追加
+            if (maxMaterial.c >= 24 && (droppedCard in maxMaterial.d)) {
+                validMaterialsP1 = [maxMaterial];
+            }
+        }
+
+        if (validMaterialsP1.length > 0) {
+            console.log("P1 ron button");
+            // P1のロン処理のため、ロンに使うカードを選択
+            p1_selected_card = [droppedCard];
+            // `time` を "make" に変更
             time = "make";
-            // 捨て牌一覧の最後の要素を取得し、赤枠を付ける
-            const DroppedCards = document.getElementById("dropped_area_p1").children;
+
+            const DroppedCards = document.getElementById("dropped_area_p2").children;
             const lastDiscard = DroppedCards[DroppedCards.length - 1];
-            lastDiscard.style.border = "1px solid f00";
-            done("p2", true);
-        });
-    }
+            lastDiscard.classList.add("selectedP1");
 
-    // P1のロン判定（捨てられたカードを含める）
-    const possibleMaterialsP1 = await search_materials(arrayToObj([...p1_hand, droppedCard]));
-    const validMaterialsP1 = possibleMaterialsP1.filter(material => ((material.c >= 70) && material.d[droppedCard]));
-
-    if (validMaterialsP1.length > 0) {
-        // **P1の手札に捨てたカードがもうない可能性があるため、戻す**
-        p1_hand.push(droppedCard);
-        // P1のロン処理のため、ロンに使うカードを選択
-        p1_selected_card = [droppedCard];
-        // `time` を "make" に変更
-        time = "make";
-        // P1のロン処理を実行
-        done("p1", true);
+            // P1のロン処理を実行
+            done("p1", true, validMaterialsP1);
+        } else {
+            p1_action();
+        }
     }
 }
+
+
 async function updateGeneratedMaterials(materialName) {
     if (!materialName || materialName === "なし") return;
 
