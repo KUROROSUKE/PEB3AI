@@ -542,7 +542,7 @@ async function showDown() {
     const area = document.getElementById('p1_hand');
     area.innerHTML = "";
 
-    const selectedCopy = [...p1_selected_card]; // 使用済みチェック用のコピー
+    let selectedCopy = [...p1_selected_card]; // 使用済みチェック用のコピー
 
     p1_hand.forEach((elem, index) => {
         const number = elementToNumber[elem];
@@ -559,17 +559,6 @@ async function showDown() {
             image.classList.add("selectedP1");
             selectedCopy.splice(selectedIndex, 1); // 使用済みにする
         }
-
-        // クリックで選択の切り替え
-        image.addEventListener("click", function () {
-            this.classList.toggle("selectedP1");
-            if (this.classList.contains("selectedP1")) {
-                p1_selected_card.push(elem);
-            } else {
-                const idx = p1_selected_card.indexOf(elem);
-                if (idx !== -1) p1_selected_card.splice(idx, 1);
-            }
-        });
 
         area.appendChild(image);
     });
@@ -720,7 +709,7 @@ async function incrementMaterialCount(material) {
 }
 
 
-async function done(who, isRon = false, ronMaterial) {
+async function done(who, isRon = false, ronMaterial, droppedCard) {
     document.getElementById("ron_button").style.display = "none";
     document.getElementById("hint_button").style.display = "none";
     document.getElementById("hintContainer").style.display = "none";
@@ -729,7 +718,8 @@ async function done(who, isRon = false, ronMaterial) {
     let predictedMaterialP2 = await runModel(who=="p1" ? 0:1, p2_make_material.f);
     const p1_make_material = isRon ? ronMaterial : await p1_make(predictedMaterialP2);
     console.log(p1_make_material)
-    p1_selected_card = dictToArray(p1_make_material[0].d);
+    p1_selected_card.push(...dictToArray(p1_make_material[0].d));
+    p1_selected_card.splice(p1_selected_card.indexOf(droppedCard),1);
 
     let dora = await get_dora();
     console.log(`ドラ: ${dora}`);
@@ -867,7 +857,9 @@ async function p1_exchange(targetElem) {
 
 function selectCardsForMaterial(hand, materialDict) {
     const selected = [];
-    const handCopy = [...hand]; // 元の手札を壊さないようにコピー
+    let handCopy = [...hand]; // 元の手札を壊さないようにコピー
+    handCopy[handCopy.indexOf(p1_selected_card[0])] = null;
+    console.log(handCopy)
 
     for (const [element, count] of Object.entries(materialDict)) {
         let needed = count;
@@ -1151,8 +1143,6 @@ async function checkRon(droppedCard) {
 
         if (validMaterialsP1.length > 0) {
             console.log("P1 ron button");
-            // P1のロン処理のため、ロンに使うカードを選択
-            p1_selected_card = [droppedCard];
             // `time` を "make" に変更
             time = "make";
 
@@ -1161,7 +1151,7 @@ async function checkRon(droppedCard) {
             lastDiscard.classList.add("selectedP1");
 
             // P1のロン処理を実行
-            done("p1", true, validMaterialsP1);
+            done("p1", true, validMaterialsP1, droppedCard);
         } else {
             p1_action();
         }
