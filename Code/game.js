@@ -1,34 +1,50 @@
-const DB_NAME = "GameDB";
-const STORE_NAME = "GameStore";
-
+// declare variables
 let p1_hand = []; let p2_hand = []
 let p1_point = 0; let p2_point = 0
 let p1_selected_card = []; let p2_selected_card = [];
-
-const card_num = 8
-let WIN_POINT = card_num*30+10
-let WIN_TURN = 10
-
 let dropped_cards_p1 = []; let dropped_cards_p2 = [];
-
-let turn = "p1"
 let time = "game"
-let numTurn = 1
 let p1_is_acting = false
-
+// define game state
+const card_num = 8
+let WIN_POINT = card_num*30 + 10
+let WIN_TURN = 10
+let numTurn = 1
+let turn = "p1"
+// define constant variables
 const elementToNumber = {"H": 1, "He": 2, "Li": 3, "Be": 4, "B": 5, "C": 6, "N": 7, "O": 8, "F": 9, "Ne": 10,"Na": 11, "Mg": 12, "Al": 13, "Si": 14, "P": 15, "S": 16, "Cl": 17, "Ar": 18, "K": 19, "Ca": 20,"Fe": 26, "Cu": 29, "Zn": 30, "I": 53}
 const elements = [...Array(6).fill('H'), ...Array(4).fill('O'), ...Array(4).fill('C'),'He', 'Li', 'Be', 'B', 'N', 'F', 'Ne', 'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca','Fe', 'Cu', 'Zn', 'I']
 const element = ['H','O','C','He', 'Li', 'Be', 'B', 'N', 'F', 'Ne', 'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca','Fe', 'Cu', 'Zn', 'I']
-let deck = [...elements, ...elements]
-let materials = []
-let imageCache = {}
 
-let model;
-let modelName;
-let outputNum;
 
-const countTemplate = Object.fromEntries(Object.values(elementToNumber).map(num => [num, 0]));
 
+
+
+// if first visited, then create each materials count (initialization)
+async function initializeMaterials() {
+    // indexedDB に "materials" が存在しない場合
+    if (!(await getItem("materials"))) {
+        // materials 内の各オブジェクトの a キーの値をキーとし、値を 0 にするオブジェクトを作成
+        let initialMaterials = {};
+        materials.forEach(item => {
+            initialMaterials[item.a] = 0;
+        });
+
+        // 作成したオブジェクトを indexedDB に保存
+        await setItem("materials", initialMaterials);
+    }
+    if (!(await getItem("sumNs"))) {
+        await setItem("sumNs", 0);
+    }
+}
+
+
+
+
+
+// ========== indexedDB operations ==========
+const DB_NAME = "GameDB";
+const STORE_NAME = "GameStore";
 function openDB() {
     return new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, 1);
@@ -42,7 +58,6 @@ function openDB() {
         };
     });
 }
-
 async function setItem(key, value) {
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, "readwrite");
@@ -50,7 +65,6 @@ async function setItem(key, value) {
     store.put(value, key);
     return tx.complete;
 }
-
 async function getItem(key) {
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, "readonly");
@@ -62,32 +76,24 @@ async function getItem(key) {
     });
 }
 
-async function convertToCount(array) {
-    // テンプレートのコピーを作成
-    let count = { ...countTemplate };
-    // 配列内の各元素をカウント
-    array.forEach(elem => {
-        let num = elementToNumber[elem];
-        if (num !== undefined) {
-            count[num] += 1;
-        }
-    });
-    // カウントの値を配列として返す（数値順に並ぶ）
-    return Object.values(count);
-}
 
+
+
+
+// ========== prediction models operations ==========
 let xs = [];
 let ys = [];
 let isTraining = false; // 学習中フラグ
-
+let model;
+let modelName;
+let outputNum;
+const countTemplate = Object.fromEntries(Object.values(elementToNumber).map(num => [num, 0]));
+// extract model name from url
 function extractModelName(url) {
     const match = url.match(/\/([^\/]+)$/);
     return match ? match[1] : null;
 }
-
-
-
-// 1. モデルをロード（indexedDBを優先）
+// load model
 async function loadModel(url=null, NameOfModel=null) {
     try {
         if (url == null){//最初にこれを読み込む
@@ -122,8 +128,27 @@ async function loadModel(url=null, NameOfModel=null) {
         document.getElementById("Attention").style.display = "block";
     }
 }
-
-// 2. 追加データを学習用に変換
+// OneHotEncoding for converting of AI's train data
+function oneHotEncode(index, numClasses) {
+    const encoded = new Array(numClasses).fill(0);
+    encoded[index] = 1;
+    return encoded;
+}
+// count elements in material, convert to 24 dimensions Vector
+async function convertToCount(array) {
+    // テンプレートのコピーを作成
+    let count = { ...countTemplate };
+    // 配列内の各元素をカウント
+    array.forEach(elem => {
+        let num = elementToNumber[elem];
+        if (num !== undefined) {
+            count[num] += 1;
+        }
+    });
+    // カウントの値を配列として返す（数値順に並ぶ）
+    return Object.values(count);
+}
+// convert to train data shape
 async function addTrainingData(playerData, generatedMaterialIndex, who) {
     if (!model) {
         console.log("モデルがロードされていません");
@@ -147,47 +172,7 @@ async function addTrainingData(playerData, generatedMaterialIndex, who) {
     ys.push(outputTensor);
     console.log("データを追加しました: クラス", generatedMaterialIndex);
 }
-
-// 3. モデルの追加学習
-// コサイン類似度の計算関数
-function cosineSimilarity(vec1, vec2) {
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-
-    for (let i = 0; i < vec1.length; i++) {
-        dotProduct += vec1[i] * vec2[i];
-        normA += vec1[i] ** 2;
-        normB += vec2[i] ** 2;
-    }
-
-    normA = Math.sqrt(normA);
-    normB = Math.sqrt(normB);
-
-    return normA && normB ? dotProduct / (normA * normB) : 0;
-}
-
-// 🎯 **最も近い物質を取得する関数**
-function findClosestMaterial(handVector) {
-    let bestMatch = null;
-    let bestSimilarity = 0; // 類似度が0より大きいもののみ対象にする
-
-    materials.forEach((material, index) => {
-        let materialVec = Object.values(material.d); // 元素のベクトル化
-        let similarity = cosineSimilarity(handVector, materialVec);
-
-        // 類似度が 0 より大きく、かつ最大のものを採用
-        if (similarity > bestSimilarity) {
-            bestSimilarity = similarity;
-            bestMatch = { index, similarity };
-        }
-    });
-
-    return bestMatch; // bestMatch が null のままなら見つかってない
-}
-
-
-// 3. モデルの追加学習
+// train AI model
 async function trainModel() {
     if (!model || xs.length === 0) {
         console.log("学習データが不足しています");
@@ -303,111 +288,7 @@ async function trainModel() {
 
     await saveModel();
 }
-
-function removeCards(tmpDeck, allCards) {
-    // allCards の出現回数をカウント
-    const countMap = new Map();
-    for (const card of allCards) {
-        countMap.set(card, (countMap.get(card) || 0) + 1);
-    }
-
-    // tmpDeck から allCards に含まれるカードを個数分だけ削除
-    return tmpDeck.filter(card => {
-        if (countMap.has(card) && countMap.get(card) > 0) {
-            countMap.set(card, countMap.get(card) - 1); // 1つ減らす
-            return false; // 除外
-        }
-        return true; // 残す
-    });
-}
-
-
-async function CanCreateMaterial(material) {
-    if (!material) {
-        console.error("❌ Error: Material is undefined!");
-        return true;  // 作れないと判定
-    }
-    
-    // 必要な元素リスト
-    const requiredElements = material.d;
-
-    // 使用可能な元素のカウント
-    let availableElements = {};
-
-    // すべてのカードを統合
-    let allCards = [...p1_hand, ...dropped_cards_p1, ...dropped_cards_p2];
-    let tmpDeck = [...elements, ...elements];
-    tmpDeck = await removeCards(tmpDeck, allCards)
-
-    // 各カードの元素をカウント
-    tmpDeck.forEach(card => {
-        availableElements[card] = (availableElements[card] || 0) + 1;
-    });
-
-    // `c == 0` の場合は作れないと判断
-    if (material.c == 0) {
-        console.log("Material has c == 0, returning true.");
-        return true;
-    }
-
-    // 必要な元素がすべて揃っているかチェック
-    for (const element in requiredElements) {
-        if (!availableElements[element] || availableElements[element] < requiredElements[element]) {
-            console.log(`Missing element: ${element}, returning true.`);
-            return true; // 必要な元素が不足している場合
-        }
-    }
-
-    return false; // すべての必要な元素が揃っている場合
-}
-
-
-async function getUsedMaterials() {
-    // indexedDB から "materials" のデータを取得
-    let storedMaterials = await getItem("materials");
-
-    // データが null, 空文字, 空オブジェクトの場合は処理しない
-    if (!storedMaterials || storedMaterials === "{}") {
-        console.log("No valid materials data found.");
-        return {};
-    }
-    // 1回以上作成された（値が1以上の）物質のみを抽出
-    let usedMaterials = Object.fromEntries(
-        Object.entries(storedMaterials).filter(([key, value]) => value > 0)
-    );
-
-    return usedMaterials;
-}
-
-function calculatePseudoProbabilities(materials) {
-    let total = Object.values(materials).reduce((sum, value) => sum + value, 0);
-    if (total === 0) return {}; // すべて 0 なら確率なし
-
-    let probabilities = {};
-    for (let key in materials) {
-        probabilities[key] = materials[key] / total;
-    }
-
-    return probabilities;
-}
-
-async function calculateWeightedProbabilities(probabilities, outputData) {
-    let weightedProbabilities = {};
-
-    // 共通するキーがあれば掛け算し * 100、なければ outputData*0.1 にする
-    for (let key in outputData) {
-        if (probabilities.hasOwnProperty(key)) {
-            sumNs = await getItem("sumNs")
-            weightedProbabilities[key] = (probabilities[key]*sumNs / (sumNs + 10) + outputData[key]) /2; //\frac{x}{x+c} という関数で0→0、∞→1となる関数。cで速さを調整可能。
-        } else {
-            weightedProbabilities[key] = outputData[key];
-        }
-    }
-
-    return weightedProbabilities;
-}
-
-//推論
+// predict users create material by AI
 async function runModel(who,madeMaterialNum) {
     if (!model) {
         console.log("モデルがロードされていません");
@@ -493,9 +374,7 @@ async function runModel(who,madeMaterialNum) {
             document.getElementById("predictResult").innerHTML = `予測結果：${materials[predictedClass].a}・信頼度：${confidence}`;
         }
 }
-
-
-// 5. 学習済みモデルを IndexedDB に保存
+// save trained AI model on indexedDB
 async function saveModel() {
     if (!model) {
         console.log("モデルがロードされていません");
@@ -510,33 +389,226 @@ async function saveModel() {
         console.error("モデルの保存に失敗しました", error);
     }
 }
-
-// One-Hot エンコーディング関数
-function oneHotEncode(index, numClasses) {
-    const encoded = new Array(numClasses).fill(0);
-    encoded[index] = 1;
-    return encoded;
+// warm up model (by dummy data predict)
+async function warmUpModel() {
+    const dummyInput = tf.tensor2d([Array(26).fill(0)], [1, 26]);
+    model.predict(dummyInput); // await しなくてOK、これだけでOK
+    console.log("✅ モデルのウォームアップ完了");
 }
 
-//　load materials
-async function loadMaterials(url) {
-    try {
-        const response = await fetch(url);
-        const data = await response.json();
-        
-        if (!data.material || !Array.isArray(data.material)) {
-            document.getElementById("Attention2").style.display = "inline";
-            return [];
-        }
-        document.getElementById("Attention2").style.display = "none";
-        return data.material;
-    } catch (error) {
-        console.error("Error fetching compounds:", error);  // Log the error to the console for debugging
-        document.getElementById("Attention2").style.display = "inline";
-        return []; // Return an empty array in case of error
+
+
+
+
+// ========== statistics of created materials ==========
+// get used materials from before battle results
+async function getUsedMaterials() {
+    // indexedDB から "materials" のデータを取得
+    let storedMaterials = await getItem("materials");
+
+    // データが null, 空文字, 空オブジェクトの場合は処理しない
+    if (!storedMaterials || storedMaterials === "{}") {
+        console.log("No valid materials data found.");
+        return {};
     }
+    // 1回以上作成された（値が1以上の）物質のみを抽出
+    let usedMaterials = Object.fromEntries(
+        Object.entries(storedMaterials).filter(([key, value]) => value > 0)
+    );
+
+    return usedMaterials;
+}
+// calculate each material probabilities to create by user from before battle results
+function calculatePseudoProbabilities(materials) {
+    let total = Object.values(materials).reduce((sum, value) => sum + value, 0);
+    if (total === 0) return {}; // すべて 0 なら確率なし
+
+    let probabilities = {};
+    for (let key in materials) {
+        probabilities[key] = materials[key] / total;
+    }
+
+    return probabilities;
+}
+// for ensemble model of AI and statistics (runModel() and calculatePseudoProbabilities())
+async function calculateWeightedProbabilities(probabilities, outputData) {
+    let weightedProbabilities = {};
+
+    // 共通するキーがあれば掛け算し * 100、なければ outputData*0.1 にする
+    for (let key in outputData) {
+        if (probabilities.hasOwnProperty(key)) {
+            sumNs = await getItem("sumNs")
+            weightedProbabilities[key] = (probabilities[key]*sumNs / (sumNs + 10) + outputData[key]) /2; //\frac{x}{x+c} という関数で0→0、∞→1となる関数。cで速さを調整可能。
+        } else {
+            weightedProbabilities[key] = outputData[key];
+        }
+    }
+
+    return weightedProbabilities;
+}
+// increment materials count of created material
+async function incrementMaterialCount(material) {
+    // indexedDB から "materials" キーのデータを取得
+    let materialsData = await getItem("materials");
+
+    // 指定された material の値を1増やす（存在しない場合は初期値1）
+    materialsData[material] = (materials[material] || 0) + 1;
+
+    // 更新したオブジェクトをJSONに変換してindexedDBに保存
+    await setItem("materials", materialsData);
+    var sumNs = await getItem("sumNs");
+    await setItem("sumNs", sumNs+1);
 }
 
+
+
+
+
+// ========== p1's actions ==========
+// view p1_hand (back of card)
+async function view_p1_hand() {
+    const area = document.getElementById('p1_hand');
+    p1_hand.forEach((elem, index) => {
+        const blob = imageCache[0];
+        const image = new Image();
+        image.src = URL.createObjectURL(blob);
+        image.alt = "相手の手札";
+        image.style.padding = "5px";
+        image.style.border = "1px solid #000";
+        image.classList.add("selected");
+        image.classList.toggle("selected");
+        area.appendChild(image)
+    })
+}
+// p1 action. this function decide actions(create, exchange,...)
+async function p1_action() {
+    if (turn !== "p1" || p1_is_acting) {
+        return;  // すでに行動中なら何もしない
+    }
+    p1_is_acting = true;  // 行動開始
+
+    // フィルタリング
+    const highPointMaterials = materials.filter(material => material.c > threshold);
+    
+    // 最適な物質を選択
+    const sortedMaterials = highPointMaterials.sort((a, b) => {
+        let aMatchCount = Object.keys(a.d).reduce((count, elem) => count + Math.min(p1_hand.filter(e => e === elem).length, a.d[elem]), 0);
+        let bMatchCount = Object.keys(b.d).reduce((count, elem) => count + Math.min(p1_hand.filter(e => e === elem).length, b.d[elem]), 0);
+        return bMatchCount - aMatchCount || b.c - a.c;
+    });
+
+    const targetMaterial = sortedMaterials[0];
+
+    if (!targetMaterial) {
+        p1_exchange(Math.floor(Math.random() * p1_hand.length));
+    } else {
+        let canMake = true;
+        for (const element in targetMaterial.d) {
+            if (!p1_hand.includes(element) || p1_hand.filter(e => e === element).length < targetMaterial.d[element]) {
+                canMake = false;
+                break;
+            }
+        }
+
+        if (canMake && targetMaterial.c > threshold) {
+            time = "make";
+            await done("p1");
+        } else {
+            let unnecessaryCards = p1_hand.filter(e => {
+                return !(e in targetMaterial.d) || p1_hand.filter(card => card === e).length > targetMaterial.d[e];
+            });
+
+            if (unnecessaryCards.length > 0) {
+                let cardToExchange = unnecessaryCards[Math.floor(Math.random() * unnecessaryCards.length)];
+                p1_exchange(p1_hand.indexOf(cardToExchange));
+            } else {
+                time = "make"
+                done("p1");
+            }
+        }
+    }
+    
+    turn = "p2";
+    p1_is_acting = false;
+}
+// p1 exchange card by automation
+async function p1_exchange(targetElem) {
+    // Select a random card index from p1_hand// TODO: from AI.js
+    dropped_cards_p1.push(p1_hand[targetElem])
+    var exchange_element = p1_hand[targetElem]
+    // Ensure the target card exists and is valid
+    if (!p1_hand[targetElem]) {
+        console.error("Invalid target element in p1_hand.")
+        return
+    }
+    // Create a new image for the dropped card area
+    
+    const blob = imageCache[elementToNumber[p1_hand[targetElem]]];
+    const newImg = new Image();
+    newImg.src = URL.createObjectURL(blob);
+    newImg.style.border = "1px solid #000";
+    document.getElementById("dropped_area_p1").appendChild(newImg);
+    // Update the player's hand with a new element
+    const img = document.querySelectorAll("#p1_hand img")[targetElem];
+    if (!img) {
+        console.error("Image element not found in p1_hand.");
+        return;
+    }
+    // Select a new random element and replace the target card
+    const newElem = drawCard();
+    p1_hand[targetElem] = newElem;
+    // Update the image element's appearance
+    img.alt = newElem;
+    img.style.border = "1px solid #000"
+    // Remove and reapply the 'selected' class to reset the state
+    img.classList.remove("selected");
+    img.classList.add("selected");
+    img.classList.toggle("selected");
+    // Switch the turn to "p2"
+    turn = "p2";
+    checkRon(exchange_element);
+}
+// make p1's material when done()
+async function p1_make(predictedMaterialP2) {
+    const makeable_material = await search_materials(arrayToObj(p1_hand));
+
+    // 作れる物質がない場合は "なし" を返す
+    if (!makeable_material || makeable_material.length === 0) {
+        return [{
+            "a": "なし",
+            "b": "なし",
+            "c": 0,
+            "d": {},
+            "e": []
+        }];
+    }
+
+    // ポイントが高い順にソート
+    makeable_material.sort((a, b) => b.c - a.c);
+    p1_selected_card = dictToArray(makeable_material[0].d);
+
+    return makeable_material;
+}
+// select cards of p1 has to select element of material
+function selectCardsForMaterial(hand, materialDict) {
+    const selected = [];
+    let handCopy = [...hand]; // 元の手札を壊さないようにコピー
+    handCopy[handCopy.indexOf(p1_selected_card[0])] = null;
+    console.log(handCopy)
+
+    for (const [element, count] of Object.entries(materialDict)) {
+        let needed = count;
+        for (let i = 0; i < handCopy.length && needed > 0; i++) {
+            if (handCopy[i] === element) {
+                selected.push(element);
+                handCopy[i] = null; // 同じカードを何度も使わないようにマーク
+                needed--;
+            }
+        }
+    }
+    return selected;
+}
+// showdown p1_hand (front of card)
 async function showDown() {
     console.log(p1_selected_card);
     const area = document.getElementById('p1_hand');
@@ -566,7 +638,10 @@ async function showDown() {
 
 
 
-// main code
+
+
+// ========== p2's actions ==========
+// view p2_hand and card operations processing
 async function view_p2_hand() {
     const area = document.getElementById('p2_hand')
     p2_hand.forEach((elem, index) => {
@@ -617,59 +692,7 @@ async function view_p2_hand() {
         area.appendChild(image);
     })
 }
-
-async function view_p1_hand() {
-    const area = document.getElementById('p1_hand');
-    p1_hand.forEach((elem, index) => {
-        const blob = imageCache[0];
-        const image = new Image();
-        image.src = URL.createObjectURL(blob);
-        image.alt = "相手の手札";
-        image.style.padding = "5px";
-        image.style.border = "1px solid #000";
-        image.classList.add("selected");
-        image.classList.toggle("selected");
-        area.appendChild(image)
-    })
-}
-
-async function search(components) {
-    return materials.find(material => {
-        for (const element in components) {
-            if (!material.d[element] || material.d[element] !== components[element]) {
-                return false;
-            }
-        }
-        for (const element in material.d) {
-            if (!components[element]) {
-                return false;
-            }
-        }
-        return true;
-    }) || materials[0];
-}
-
-async function p1_make(predictedMaterialP2) {
-    const makeable_material = await search_materials(arrayToObj(p1_hand));
-
-    // 作れる物質がない場合は "なし" を返す
-    if (!makeable_material || makeable_material.length === 0) {
-        return [{
-            "a": "なし",
-            "b": "なし",
-            "c": 0,
-            "d": {},
-            "e": []
-        }];
-    }
-
-    // ポイントが高い順にソート
-    makeable_material.sort((a, b) => b.c - a.c);
-    p1_selected_card = dictToArray(makeable_material[0].d);
-
-    return makeable_material;
-}
-
+// make p2's material when done()
 async function p2_make() {
     // ボタンの表示を変更
     document.getElementById("generate_button").style.display = "none";
@@ -689,34 +712,95 @@ async function p2_make() {
         });
     });
 }
+// create p2.
+document.getElementById("generate_button").addEventListener("click", function () {
+    if (turn == "p2") {
+        document.getElementById("hintContainer").style.display = "none"; // 非表示
+        document.getElementById("hint_button").style.display = "none"; // 非表示
+        time = "make"
+        document.getElementById("ron_button").style.display = "none";
+        done("p2");
+    }
+})
 
 
+
+
+
+// ========== check Ron action of p1, p2 ==========
+async function checkRon(droppedCard) {
+    // P2のロン判定
+    if (turn=="p2"){
+        const possibleMaterialsP2 = await search_materials(arrayToObj([...p2_hand, droppedCard]));
+        const validMaterialsP2 = possibleMaterialsP2.filter(material => material.d[droppedCard]);
+        if (validMaterialsP2.length > 0) {
+            const ronButton = document.getElementById("ron_button");
+            ronButton.style.display = "inline";
+            ronButton.replaceWith(ronButton.cloneNode(true));
+            const newRonButton = document.getElementById("ron_button");
+
+            newRonButton.addEventListener("click", function () {
+                newRonButton.style.display = "none";
+                const dropped = document.querySelectorAll("#dropped_area_p1 img");
+                const selectCard = dropped[dropped.length - 1];
+                selectCard.classList.add("selected");
+                p2_selected_card = [droppedCard];
+                time = "make";
+                done("p2", p2_ron = true);
+            });
+        }
+    } else if (turn=="p1"){
+        console.log("P1 ron check");
+        // P1のロン判定（捨てられたカードを含める）
+        const possibleMaterialsP1 = await search_materials(arrayToObj([...p1_hand, droppedCard]));
+        let validMaterialsP1 = [];
+        if (possibleMaterialsP1.length > 0) {
+            // 最も高いポイントの物質を選ぶ
+            const maxMaterial = possibleMaterialsP1.reduce((max, m) => m.c > max.c ? m : max);
+            console.log(maxMaterial)
+
+            // 条件に合えば validMaterialsP1 に追加
+            if (maxMaterial.c >= threshold*1.2 && (droppedCard in maxMaterial.d)) {
+                validMaterialsP1 = [maxMaterial];
+            }
+        }
+
+        if (validMaterialsP1.length > 0) {
+            console.log("P1 ron button");
+            // `time` を "make" に変更
+            time = "make";
+
+            const DroppedCards = document.getElementById("dropped_area_p2").children;
+            const lastDiscard = DroppedCards[DroppedCards.length - 1];
+            lastDiscard.classList.add("selectedP1");
+
+            // P1のロン処理を実行
+            done("p1", validMaterialsP1, droppedCard, p1_ron=true);
+        } else {
+            p1_action();
+        }
+    }
+}
+
+
+
+
+
+// ========== done processes ==========
+// get dora
 async function get_dora() {
     return element[Math.round(Math.random()*23)]
 }
-
-async function incrementMaterialCount(material) {
-    // indexedDB から "materials" キーのデータを取得
-    let materialsData = await getItem("materials");
-
-    // 指定された material の値を1増やす（存在しない場合は初期値1）
-    materialsData[material] = (materials[material] || 0) + 1;
-
-    // 更新したオブジェクトをJSONに変換してindexedDBに保存
-    await setItem("materials", materialsData);
-    var sumNs = await getItem("sumNs");
-    await setItem("sumNs", sumNs+1);
-}
-
-
-async function done(who, isRon = false, ronMaterial, droppedCard) {
+// done process. finally, next game button or finish game button.
+async function done(who, ronMaterial, droppedCard, p1_ron = false, p2_ron = false) {
+    console.log(ronMaterial)
     document.getElementById("ron_button").style.display = "none";
     document.getElementById("hint_button").style.display = "none";
     document.getElementById("hintContainer").style.display = "none";
 
     const p2_make_material = await p2_make();
     let predictedMaterialP2 = await runModel(who=="p1" ? 0:1, p2_make_material.f);
-    const p1_make_material = isRon ? ronMaterial : await p1_make(predictedMaterialP2);
+    const p1_make_material = p1_ron ? ronMaterial : await p1_make(predictedMaterialP2);
     console.log(p1_make_material)
     p1_selected_card.push(...dictToArray(p1_make_material[0].d));
     p1_selected_card.splice(p1_selected_card.indexOf(droppedCard),1);
@@ -742,7 +826,7 @@ async function done(who, isRon = false, ronMaterial, droppedCard) {
     }
 
     // **ロン時のボーナス**
-    if (isRon) {
+    if (p1_ron || p2_ron) {
         who == "p2" ? thisGame_p2_point /= 1.2 : thisGame_p1_point /= 1.2
     }
 
@@ -763,11 +847,13 @@ async function done(who, isRon = false, ronMaterial, droppedCard) {
     document.getElementById("p1_explain").innerHTML = `生成物質：${p1_make_material[0].a}, 組成式：${p1_make_material[0].b}`;
 
     //モデルを学習
-    let generatedMaterialIndex = p2_make_material.f
-    await addTrainingData(p2_hand, generatedMaterialIndex, who=="p1" ? 0:1);
-    await trainModel();
+    if (IsTraining) {
+        let generatedMaterialIndex = p2_make_material.f;
+        await addTrainingData(p2_hand, generatedMaterialIndex, who=="p1" ? 0:1);
+        await trainModel();
 
-    await incrementMaterialCount(p2_make_material.a)
+        await incrementMaterialCount(p2_make_material.a);
+    }
 
     // 勝者判定
     const winner = await win_check();
@@ -813,122 +899,16 @@ async function done(who, isRon = false, ronMaterial, droppedCard) {
         });
     }
 }
-
+// win check (p1 win => return "p1", p2 win => return "p2". And p1 and p2 don't win => return null)
 async function win_check() {
     return Math.abs(p1_point - p2_point) >= WIN_POINT ? p1_point>p2_point ? "p1": "p2" : numTurn >= WIN_TURN ? p1_point>p2_point ? "p1": "p2" : null
 }
 
-async function p1_exchange(targetElem) {
-    // Select a random card index from p1_hand// TODO: from AI.js
-    dropped_cards_p1.push(p1_hand[targetElem])
-    var exchange_element = p1_hand[targetElem]
-    // Ensure the target card exists and is valid
-    if (!p1_hand[targetElem]) {
-        console.error("Invalid target element in p1_hand.")
-        return
-    }
-    // Create a new image for the dropped card area
-    
-    const blob = imageCache[elementToNumber[p1_hand[targetElem]]];
-    const newImg = new Image();
-    newImg.src = URL.createObjectURL(blob);
-    newImg.style.border = "1px solid #000";
-    document.getElementById("dropped_area_p1").appendChild(newImg);
-    // Update the player's hand with a new element
-    const img = document.querySelectorAll("#p1_hand img")[targetElem];
-    if (!img) {
-        console.error("Image element not found in p1_hand.");
-        return;
-    }
-    // Select a new random element and replace the target card
-    const newElem = drawCard();
-    p1_hand[targetElem] = newElem;
-    // Update the image element's appearance
-    img.alt = newElem;
-    img.style.border = "1px solid #000"
-    // Remove and reapply the 'selected' class to reset the state
-    img.classList.remove("selected");
-    img.classList.add("selected");
-    img.classList.toggle("selected");
-    // Switch the turn to "p2"
-    turn = "p2";
-    checkRon(exchange_element);
-}
-
-function selectCardsForMaterial(hand, materialDict) {
-    const selected = [];
-    let handCopy = [...hand]; // 元の手札を壊さないようにコピー
-    handCopy[handCopy.indexOf(p1_selected_card[0])] = null;
-    console.log(handCopy)
-
-    for (const [element, count] of Object.entries(materialDict)) {
-        let needed = count;
-        for (let i = 0; i < handCopy.length && needed > 0; i++) {
-            if (handCopy[i] === element) {
-                selected.push(element);
-                handCopy[i] = null; // 同じカードを何度も使わないようにマーク
-                needed--;
-            }
-        }
-    }
-    return selected;
-}
-
-
-async function p1_action() {
-    if (turn !== "p1" || p1_is_acting) {
-        return;  // すでに行動中なら何もしない
-    }
-    p1_is_acting = true;  // 行動開始
-
-    // フィルタリング
-    const highPointMaterials = materials.filter(material => material.c > 20);
-    
-    // 最適な物質を選択
-    const sortedMaterials = highPointMaterials.sort((a, b) => {
-        let aMatchCount = Object.keys(a.d).reduce((count, elem) => count + Math.min(p1_hand.filter(e => e === elem).length, a.d[elem]), 0);
-        let bMatchCount = Object.keys(b.d).reduce((count, elem) => count + Math.min(p1_hand.filter(e => e === elem).length, b.d[elem]), 0);
-        return bMatchCount - aMatchCount || b.c - a.c;
-    });
-
-    const targetMaterial = sortedMaterials[0];
-
-    if (!targetMaterial) {
-        p1_exchange(Math.floor(Math.random() * p1_hand.length));
-    } else {
-        let canMake = true;
-        for (const element in targetMaterial.d) {
-            if (!p1_hand.includes(element) || p1_hand.filter(e => e === element).length < targetMaterial.d[element]) {
-                canMake = false;
-                break;
-            }
-        }
-
-        if (canMake && targetMaterial.c > 20) {
-            time = "make";
-            await done("p1");
-        } else {
-            let unnecessaryCards = p1_hand.filter(e => {
-                return !(e in targetMaterial.d) || p1_hand.filter(card => card === e).length > targetMaterial.d[e];
-            });
-
-            if (unnecessaryCards.length > 0) {
-                let cardToExchange = unnecessaryCards[Math.floor(Math.random() * unnecessaryCards.length)];
-                p1_exchange(p1_hand.indexOf(cardToExchange));
-            } else {
-                time = "make"
-                done("p1");
-            }
-        }
-    }
-    
-    turn = "p2";
-    p1_is_acting = false;
-}
 
 
 
-//便利系関数
+
+// useful functions
 function arrayToObj(array) {
     let result = {}
     array.forEach(item => {
@@ -940,7 +920,6 @@ function arrayToObj(array) {
     })
     return result
 }
-
 function dictToArray(dict) {
     const result = [];
     for (const [key, value] of Object.entries(dict)) {
@@ -950,7 +929,7 @@ function dictToArray(dict) {
     }
     return result;
 }
-
+// for deck shuffle
 function shuffle(array) {
     let currentIndex = array.length;
   
@@ -968,11 +947,67 @@ function shuffle(array) {
 
     return array;
 }
-
+// get next card (if no card in deck, then done()) from this function.
 function drawCard() {
     return deck.length > 0 ? deck.pop() : (time = "make", done("no-draw"));
 }
+// count creatable materials for CanCreateMaterial()
+function removeCards(tmpDeck, allCards) {
+    // allCards の出現回数をカウント
+    const countMap = new Map();
+    for (const card of allCards) {
+        countMap.set(card, (countMap.get(card) || 0) + 1);
+    }
 
+    // tmpDeck から allCards に含まれるカードを個数分だけ削除
+    return tmpDeck.filter(card => {
+        if (countMap.has(card) && countMap.get(card) > 0) {
+            countMap.set(card, countMap.get(card) - 1); // 1つ減らす
+            return false; // 除外
+        }
+        return true; // 残す
+    });
+}
+// return "material is create?"
+async function CanCreateMaterial(material) {
+    if (!material) {
+        console.error("❌ Error: Material is undefined!");
+        return true;  // 作れないと判定
+    }
+    
+    // 必要な元素リスト
+    const requiredElements = material.d;
+
+    // 使用可能な元素のカウント
+    let availableElements = {};
+
+    // すべてのカードを統合
+    let allCards = [...p1_hand, ...dropped_cards_p1, ...dropped_cards_p2];
+    let tmpDeck = [...elements, ...elements];
+    tmpDeck = await removeCards(tmpDeck, allCards)
+
+    // 各カードの元素をカウント
+    tmpDeck.forEach(card => {
+        availableElements[card] = (availableElements[card] || 0) + 1;
+    });
+
+    // `c == 0` の場合は作れないと判断
+    if (material.c == 0) {
+        console.log("Material has c == 0, returning true.");
+        return true;
+    }
+
+    // 必要な元素がすべて揃っているかチェック
+    for (const element in requiredElements) {
+        if (!availableElements[element] || availableElements[element] < requiredElements[element]) {
+            console.log(`Missing element: ${element}, returning true.`);
+            return true; // 必要な元素が不足している場合
+        }
+    }
+
+    return false; // すべての必要な元素が揃っている場合
+}
+// search creatable materials for p1
 async function search_materials(components) {
     return materials.filter(material => {
         for (const element in material.d) {
@@ -983,206 +1018,36 @@ async function search_materials(components) {
         return true;
     });
 }
-
-function random_hand() {
-    for (let i = 0; i < card_num; i++) {
-        p1_hand.push(drawCard());
-        p2_hand.push(drawCard());
-    };
-}
-
-document.getElementById("generate_button").addEventListener("click", function () {
-    if (turn == "p2") {
-        document.getElementById("hintContainer").style.display = "none"; // 非表示
-        document.getElementById("hint_button").style.display = "none"; // 非表示
-        time = "make"
-        document.getElementById("ron_button").style.display = "none";
-        done("p2");
-    }
-})
-
-function resetGame() {
-    p1_hand = [];
-    p2_hand = [];
-    dropped_cards_p1 = [];
-    dropped_cards_p2 = [];
-    p1_selected_card = [];
-    p2_selected_card = [];
-    time = "game";
-    turn = Math.random() <= 0.5 ? "p1" : "p2";
-
-    document.getElementById("p1_point").innerHTML = `ポイント：${p1_point}`;
-    document.getElementById("p2_point").innerHTML = `ポイント：${p2_point}`;
-    document.getElementById("p2_explain").innerHTML = "　";
-    document.getElementById("predictResult").innerHTML = "　";
-    const ExplainArea = document.getElementById("p1_explain")
-    ExplainArea.innerHTML = "　";
-    ExplainArea.style.color = "black";
-    ExplainArea.style.fontSize = "16px";
-
-    document.getElementById("generate_button").style.display = "inline";
-    document.getElementById("done_button").style.display = "none";
-    document.getElementById("nextButton").style.display = "none";
-    deck = [...elements, ...elements];
-    deck = shuffle(deck);
-
-    const p1_hand_element = document.getElementById("p1_hand");
-    const p2_hand_element = document.getElementById("p2_hand");
-    p1_hand_element.innerHTML = "";
-    p2_hand_element.innerHTML = "";
-
-    const dropped_area_p1_element = document.getElementById("dropped_area_p1");
-    const dropped_area_p2_element = document.getElementById("dropped_area_p2");
-    dropped_area_p1_element.innerHTML = "";
-    dropped_area_p2_element.innerHTML = "";
-
-    random_hand();
-    view_p1_hand();
-    view_p2_hand();
-    document.getElementById("hint_button").style.display = "inline";
-
-    if (turn === "p1") {
-        setTimeout(() => p1_action(), 500);
-    }
-}
-
-async function preloadImages() {
-    const imageNumbers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 26, 29, 30, 53];
-
-    // 画像読み込みのPromise配列を作成
-    const promises = imageNumbers.map(async (num) => {
-        try {
-            const imageUrl = `../images/${num}.webp`;
-            const response = await fetch(imageUrl);
-            const blob = await response.blob();
-            imageCache[num] = blob;
-        } catch (error) {
-            console.error(`Image loading error: ${num}`, error);
-        }
-    });
-
-    // 並列実行を待つ
-    await Promise.all(promises);
-    console.log("✅ 全画像のプリロード完了");
-}
-
-async function preloadBackgroundImages() {
-    const isMobile = window.innerWidth <= 730;
-    const url = isMobile
-        ? '../images/start_screen_mobile.webp'
-        : '../images/start_screen_desktop.webp';
-
-    try {
-        const response = await fetch(url, { cache: "force-cache" });
-        const blob = await response.blob();
-        const objectURL = URL.createObjectURL(blob);
-
-        // 一応画像読み込ませておく（なくてもOK）
-        const img = new Image();
-        img.src = objectURL;
-        img.style.display = "none";
-        document.body.appendChild(img);
-
-        // 💥 ここで背景にセット
-        const screen = document.getElementById("startScreen");
-        screen.style.backgroundImage = `url('${objectURL}')`;
-
-        console.log("✅ 背景画像読み込み＆設定完了:", url);
-    } catch (err) {
-        console.error("背景画像の読み込みに失敗", url, err);
-    }
-}
-
-
-
-
-
-async function init_json() {
-    materials = await loadMaterials("https://kurorosuke.github.io/compounds/obf_extended.json");
-    let outputNum = model.outputs[0].shape[1];
-    if (outputNum!=materials.length) {const att = document.getElementById("Attention4");att.innerHTML = `モデルは出力${outputNum}個に対応していますが、compoundsは${materials.length}個です`;att.style.display="inline";} else {document.getElementById("Attention4").style.display = "none";}
-}
-
-
-
-async function checkRon(droppedCard) {
-    // P2のロン判定
-    if (turn=="p2"){
-        const possibleMaterialsP2 = await search_materials(arrayToObj([...p2_hand, droppedCard]));
-        const validMaterialsP2 = possibleMaterialsP2.filter(material => material.d[droppedCard]);
-        if (validMaterialsP2.length > 0) {
-            const ronButton = document.getElementById("ron_button");
-            ronButton.style.display = "inline";
-            ronButton.replaceWith(ronButton.cloneNode(true));
-            const newRonButton = document.getElementById("ron_button");
-
-            newRonButton.addEventListener("click", function () {
-                newRonButton.style.display = "none";
-                const dropped = document.querySelectorAll("#dropped_area_p1 img");
-                const selectCard = dropped[dropped.length - 1];
-                selectCard.classList.add("selected");
-                p2_selected_card = [droppedCard];
-                time = "make";
-                done("p2", true);
-            });
-        }
-    } else if (turn=="p1"){
-        console.log("P1 ron check");
-        // P1のロン判定（捨てられたカードを含める）
-        const possibleMaterialsP1 = await search_materials(arrayToObj([...p1_hand, droppedCard]));
-        let validMaterialsP1 = [];
-        if (possibleMaterialsP1.length > 0) {
-            // 最も高いポイントの物質を選ぶ
-            const maxMaterial = possibleMaterialsP1.reduce((max, m) => m.c > max.c ? m : max);
-
-            // 条件に合えば validMaterialsP1 に追加
-            if (maxMaterial.c >= 24 && (droppedCard in maxMaterial.d)) {
-                validMaterialsP1 = [maxMaterial];
+// return just a material
+async function search(components) {
+    return materials.find(material => {
+        for (const element in components) {
+            if (!material.d[element] || material.d[element] !== components[element]) {
+                return false;
             }
         }
-
-        if (validMaterialsP1.length > 0) {
-            console.log("P1 ron button");
-            // `time` を "make" に変更
-            time = "make";
-
-            const DroppedCards = document.getElementById("dropped_area_p2").children;
-            const lastDiscard = DroppedCards[DroppedCards.length - 1];
-            lastDiscard.classList.add("selectedP1");
-
-            // P1のロン処理を実行
-            done("p1", true, validMaterialsP1, droppedCard);
-        } else {
-            p1_action();
+        for (const element in material.d) {
+            if (!components[element]) {
+                return false;
+            }
         }
-    }
+        return true;
+    }) || materials[0];
 }
 
 
-async function updateGeneratedMaterials(materialName) {
-    if (!materialName || materialName === "なし") return;
 
-    // indexedDB からデータを取得（なければ空のオブジェクト）
-    let generatedMaterials = await getItem("generatedMaterials") || {};
 
-    // 物質のカウントを更新
-    if (generatedMaterials[materialName]) {
-        generatedMaterials[materialName] += 1;
-    } else {
-        generatedMaterials[materialName] = 1;
-    }
 
-    // indexedDB に保存
-    await setItem("generatedMaterials", generatedMaterials);
-}
-
-//設定画面
-function openWinSettings() {
-    document.getElementById("winSettingsModal").style.display = "block";
-}
+// ========== set settings from Modal ==========
+let selectingModel;
+let IsTraining; // 「学習するか」フラグ
+// save Modal settings
 async function saveWinSettings() {
     let winPointInput = parseInt(document.getElementById("winPointInput").value, 10);
     let winTurnInput = parseInt(document.getElementById("winTurnInput").value, 10);
+    let WinThreshold = document.getElementById("threshold").value;
+    IsTraining = document.getElementById("IsTraining").value;
 
     if (isNaN(winPointInput) || winPointInput < 1) {
         alert("WIN_POINT は 1 以上の数値を入力してください。");
@@ -1196,7 +1061,6 @@ async function saveWinSettings() {
         alert("WIN_TURN は 1 以上の数値を入力してください。");
         return;
     }
-
     let compoundsValue = document.getElementById("compoundsSelection").value;
     if (compoundsValue != "url") {
         var compoundsURL = `https://kurorosuke.github.io/compounds/${compoundsValue}.json`;
@@ -1206,74 +1070,71 @@ async function saveWinSettings() {
     materials = await loadMaterials(compoundsURL);
     if (outputNum!=materials.length) {const att = document.getElementById("Attention4");att.innerHTML = `モデルは出力${outputNum}個に対応していますが、compoundsは${materials.length}個です`;att.style.display="inline";} else {document.getElementById("Attention4").style.display = "none";}
 
+    const maxValue = Math.max(...materials.map(item => item.c));
+    if (WinThreshold < 0) {
+        alert("threshold は 0以上の値にしてください。");
+        return;
+    } else if (WinThreshold >= maxValue) {
+        alert(`threshold は ${maxValue}以下の値にしてください。`);
+        return;
+    }
+    
+    threshold = WinThreshold;
     WIN_POINT = winPointInput;
     WIN_TURN = winTurnInput;
     closeWinSettings();
 }
+// close Modal
 function closeWinSettings() {
     document.getElementById("winSettingsModal").style.display = "none";
 }
+// open Modal when click
 document.getElementById("setting_icon").addEventListener("click", function() {
     document.getElementById("winSettingsModal").style.display = "inline";
 })
-
-
-//ヒント
-async function findMostPointMaterial() {
-    const possibleMaterials = await search_materials(arrayToObj(p2_hand));
-    
-    if (possibleMaterials.length === 0) {
-        console.log("p2_hand 内で作成可能な物質はありません。");
+// show input tag of compound URL
+function showInputTag() {
+    if (document.getElementById("compoundsSelection").value == "url"){
+        document.getElementById("compoundsURL").style.display = "inline";
     } else {
-        const highestMaterial = possibleMaterials.reduce((max, material) => 
-            material.c > max.c ? material : max, possibleMaterials[0]);
-        console.log(`p2_hand 内で最もポイントが高い物質: ${highestMaterial.a} (ポイント: ${highestMaterial.c})`);
+        document.getElementById("compoundsURL").style.display = "none";
     }
 }
-
-async function initializeMaterials() {
-    // indexedDB に "materials" が存在しない場合
-    if (!(await getItem("materials"))) {
-        // materials 内の各オブジェクトの a キーの値をキーとし、値を 0 にするオブジェクトを作成
-        let initialMaterials = {};
-        materials.forEach(item => {
-            initialMaterials[item.a] = 0;
-        });
-
-        // 作成したオブジェクトを indexedDB に保存
-        await setItem("materials", initialMaterials);
-    }
-    if (!(await getItem("sumNs"))) {
-        await setItem("sumNs", 0);
+// detail of model Modal settings
+let removeTarget = []
+// get model date (final uses)
+async function getModelsDate(modelName) {
+    try {
+        const models = await tf.io.listModels();
+        const modelInfo = models[`indexeddb://${modelName}`];
+        if (!modelInfo) {
+            return "N/A";
+        }
+        return new Date(modelInfo.dateSaved).toLocaleString()
+    } catch (error) {
+        console.error(`Error fetching date for model ${modelName}:`, error);
+        return "N/A";
     }
 }
-
-function addInputModelDiv() {
-    const NewModelOption = document.createElement("div");
-    NewModelOption.id = "_inputDiv";
-    let inputTag = document.createElement("input");
-    inputTag.id = "inputTag";
-    inputTag.placeholder = "新しいモデルのURLを入力";
-    let inputButton = document.createElement("button");
-    inputButton.innerHTML = "追加";
-    inputButton.id = "inputButton";
-    inputButton.onclick = function() {
-        let inputTagDOM = document.getElementById("inputTag");
-        console.log(inputTagDOM.value)
-        getModelNames().then(models => {
-            do {
-                userInput = prompt("名前を入力してください:");
-                if (userInput==null) {userInput = extractModelName(url)};
-            } while (models.includes(userInput));
-            loadModel(inputTagDOM.value,userInput);
-            inputTagDOM.value = "";
-        });
-    };
-    NewModelOption.appendChild(inputTag);
-    NewModelOption.appendChild(inputButton);
-    document.getElementById("modelModals").appendChild(NewModelOption);
+// get model Name
+async function getModelNames() {
+    try {
+        const models = await tf.io.listModels();
+        const modelNames = Object.keys(models).map(key => key.replace('indexeddb://', ''));
+        return modelNames;
+    } catch (error) {
+        console.error("モデル名の取得に失敗しました", error);
+        return [];
+    }
 }
-
+// show Model setting when click setting button
+function showModelDetail() {
+    addOptions();
+    document.getElementById("modelModals").style.display = "inline";
+    document.getElementById("buttonModal").style.display = "inline";
+    document.getElementById("overlay").style.display = "inline";
+}
+// show model Modal
 function addLoadingButton() {
     const NewModelOption = document.createElement("div");
     NewModelOption.id = "loadingModelButtonDiv";
@@ -1312,94 +1173,33 @@ function addLoadingButton() {
     NewModelOption.appendChild(NewModelOptionButton);
     document.getElementById("modelModals").appendChild(NewModelOption);
 }
-
-async function warmUpModel() {
-    const dummyInput = tf.tensor2d([Array(26).fill(0)], [1, 26]);
-    model.predict(dummyInput); // await しなくてOK、これだけでOK
-    console.log("✅ モデルのウォームアップ完了");
+// show input Tag
+function addInputModelDiv() {
+    const NewModelOption = document.createElement("div");
+    NewModelOption.id = "_inputDiv";
+    let inputTag = document.createElement("input");
+    inputTag.id = "inputTag";
+    inputTag.placeholder = "新しいモデルのURLを入力";
+    let inputButton = document.createElement("button");
+    inputButton.innerHTML = "追加";
+    inputButton.id = "inputButton";
+    inputButton.onclick = function() {
+        let inputTagDOM = document.getElementById("inputTag");
+        console.log(inputTagDOM.value)
+        getModelNames().then(models => {
+            do {
+                userInput = prompt("名前を入力してください:");
+                if (userInput==null) {userInput = extractModelName(url)};
+            } while (models.includes(userInput));
+            loadModel(inputTagDOM.value,userInput);
+            inputTagDOM.value = "";
+        });
+    };
+    NewModelOption.appendChild(inputTag);
+    NewModelOption.appendChild(inputButton);
+    document.getElementById("modelModals").appendChild(NewModelOption);
 }
-
-
-document.addEventListener('DOMContentLoaded', async function () {
-    await preloadBackgroundImages();
-    await preloadImages();
-    await loadModel();
-    await init_json();
-    await initializeMaterials();
-    document.getElementById("loading").style.display = "none";
-    addInputModelDiv();
-    addLoadingButton();
-    document.getElementById("startButton").style.display = "inline";
-});
-
-function returnToStartScreen() {
-    document.getElementById("startScreen").style.display = "flex";
-    document.getElementById("p1_area").style.display = "none";
-    document.getElementById("dropped_area_p1").style.display = "none";
-    document.getElementById("dropped_area_p2").style.display = "none";
-    document.getElementById("p2_area").style.display = "none";
-    document.getElementById("gameRuleButton").style.display = "block";
-    document.getElementById("predictResultContainer").style.display = "none";
-    document.getElementById("centerLine").style.display = "none";
-}
-document.getElementById("startButton").addEventListener("click", function() {
-    document.getElementById("startScreen").style.display = "none";
-    document.getElementById("p1_area").style.display = "block";
-    document.getElementById("dropped_area_p1").style.display = "block";
-    document.getElementById("dropped_area_p2").style.display = "block";
-    document.getElementById("p2_area").style.display = "block";
-    document.getElementById("gameRuleButton").style.display = "none";
-    document.getElementById("predictResultContainer").style.display = "none";
-    document.getElementById("centerLine").style.display = "block";
-    resetGame();
-});
-
-
-function showRules() {
-    document.getElementById("rulesModal").style.display = "block";
-}
-
-function closeRules() {
-    document.getElementById("rulesModal").style.display = "none";
-}
-
-document.getElementById("closeRulesButton").addEventListener("click", closeRules);
-
-// モーダル外をクリックした場合に閉じる
-window.onclick = function(event) {
-    const modal = document.getElementById("rulesModal");
-    if (event.target === modal) {
-        closeRules();
-    }
-};
-
-function showInputTag() {
-    if (document.getElementById("compoundsSelection").value == "url"){
-        document.getElementById("compoundsURL").style.display = "inline";
-    } else {
-        document.getElementById("compoundsURL").style.display = "none";
-    }
-}
-
-function showModelInputTag() {
-    if (document.getElementById("modelSelection").value == "new"){
-        document.getElementById("modelURL").style.display = "inline";
-    } else {
-        document.getElementById("modelURL").style.display = "none";
-    }
-}
-
-async function getModelNames() {
-    try {
-        const models = await tf.io.listModels();
-        const modelNames = Object.keys(models).map(key => key.replace('indexeddb://', ''));
-        return modelNames;
-    } catch (error) {
-        console.error("モデル名の取得に失敗しました", error);
-        return [];
-    }
-}
-
+// add model setting area's option on Modal
 async function addOptions() {
     let models = await getModelNames();
     const Selection = document.getElementById("modelModals");
@@ -1456,29 +1256,7 @@ async function addOptions() {
         Selection.appendChild(newOption)
     })
 }
-
-
-function pseudoCosVec(materialNum1, materialNum2) {
-    const vec1 = convertToVector(materials[materialNum1].d, element);
-    const vec2 = convertToVector(materials[materialNum2].d, element);
-    console.log(vec1, vec2)
-    const cos = cosineSimilarity(vec1, vec2)
-    return cos
-}
-
-// 物質をベクトル化
-function convertToVector(material, elementDict) {
-    return elementDict.map(el => material[el] || 0);
-}
-
-function showModelDetail() {
-    addOptions();
-    document.getElementById("modelModals").style.display = "inline";
-    document.getElementById("buttonModal").style.display = "inline";
-    document.getElementById("overlay").style.display = "inline";
-}
-
-let selectingModel;
+// select Model by click, change color
 function selectModelOnSetting(selectModelName) {
     selectingModel = selectModelName;
     const modelDivs = document.querySelectorAll("#modelModals div");
@@ -1487,7 +1265,7 @@ function selectModelOnSetting(selectModelName) {
     })
     document.getElementById(selectModelName).style.background = "pink";
 }
-
+// apply Model setting, and close
 function applyModalSetting() {
     document.getElementById("winSettingsModal").style.display = "none";
     removeTarget.forEach(elem => {
@@ -1503,21 +1281,13 @@ function applyModalSetting() {
     }
     closeModelModal();
 }
-
-let removeTarget = []
+// remove Model by setting
 function removeModelOnSetting(selectModelName) {
     console.log(selectModelName);
     removeTarget.push(selectModelName);
     document.getElementById(selectModelName).remove();
 }
-
-function closeModelModal() {
-    removeTarget = [];
-    document.getElementById("modelModals").style.display = "none";
-    document.getElementById("buttonModal").style.display = "none";
-    document.getElementById("overlay").style.display = "none";
-}
-
+// download Model from indexedDB
 async function downloadModel(NameOfModel) {
     console.log(NameOfModel)
     try {
@@ -1533,8 +1303,42 @@ async function downloadModel(NameOfModel) {
         console.error(`モデル ${NameOfModel} のダウンロードに失敗しました`, error);
     }
 }
+// close Model Modal
+function closeModelModal() {
+    removeTarget = [];
+    document.getElementById("modelModals").style.display = "none";
+    document.getElementById("buttonModal").style.display = "none";
+    document.getElementById("overlay").style.display = "none";
+}
 
 
+
+
+
+// ========== game explain Modal ==========
+// show explain
+function showRules() {
+    document.getElementById("rulesModal").style.display = "block";
+}
+// close explain
+function closeRules() {
+    document.getElementById("rulesModal").style.display = "none";
+}
+document.getElementById("closeRulesButton").addEventListener("click", closeRules());
+// モーダル外をクリックした場合に閉じる
+window.onclick = function(event) {
+    const modal = document.getElementById("rulesModal");
+    if (event.target === modal) {
+        closeRules();
+    }
+};
+
+
+
+
+
+// ========== hint functions (calculation by cos similarity) ==========
+// show three closest materials
 document.getElementById("hint_button").addEventListener("click", function () {
     let closestMaterials = findClosestMaterials(p2_hand);
     
@@ -1565,10 +1369,7 @@ document.getElementById("hint_button").addEventListener("click", function () {
 
     document.getElementById("hintContainer").style.display = "inline"; // 表示
 });
-
-
-
-// 手札をベクトル化する関数（各元素のカウントを考慮）
+// convert to vector for hand
 function convertToVector2(hand, elementDict) {
     let vector = new Array(elementDict.length).fill(0);
     hand.forEach(el => {
@@ -1577,8 +1378,34 @@ function convertToVector2(hand, elementDict) {
     });
     return vector;
 }
+// convert to vector for material
+function convertToVector(material, elementDict) {
+    return elementDict.map(el => material[el] || 0);
+}
+function cosineSimilarity(vec1, vec2) {
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
 
+    for (let i = 0; i < vec1.length; i++) {
+        dotProduct += vec1[i] * vec2[i];
+        normA += vec1[i] ** 2;
+        normB += vec2[i] ** 2;
+    }
 
+    normA = Math.sqrt(normA);
+    normB = Math.sqrt(normB);
+
+    return normA && normB ? dotProduct / (normA * normB) : 0;
+}
+function pseudoCosVec(materialNum1, materialNum2) {
+    const vec1 = convertToVector(materials[materialNum1].d, element);
+    const vec2 = convertToVector(materials[materialNum2].d, element);
+    console.log(vec1, vec2)
+    const cos = cosineSimilarity(vec1, vec2)
+    return cos
+}
+// find closest material for hint
 function findClosestMaterials(hand) {
     let handVector = convertToVector2(hand, element);
     
@@ -1597,17 +1424,204 @@ function findClosestMaterials(hand) {
     // コサイン類似度が高い順にソートし、上位3つを取得
     return similarities.sort((a, b) => b.similarity - a.similarity).slice(0, 3);
 }
+// find closest material for AI training
+function findClosestMaterial(handVector) {
+    let bestMatch = null;
+    let bestSimilarity = 0; // 類似度が0より大きいもののみ対象にする
 
-async function getModelsDate(modelName) {
-    try {
-        const models = await tf.io.listModels();
-        const modelInfo = models[`indexeddb://${modelName}`];
-        if (!modelInfo) {
-            return "N/A";
+    materials.forEach((material, index) => {
+        let materialVec = Object.values(material.d); // 元素のベクトル化
+        let similarity = cosineSimilarity(handVector, materialVec);
+
+        // 類似度が 0 より大きく、かつ最大のものを採用
+        if (similarity > bestSimilarity) {
+            bestSimilarity = similarity;
+            bestMatch = { index, similarity };
         }
-        return new Date(modelInfo.dateSaved).toLocaleString()
-    } catch (error) {
-        console.error(`Error fetching date for model ${modelName}:`, error);
-        return "N/A";
+    });
+
+    return bestMatch; // bestMatch が null のままなら見つかってない
+}
+// find highest point material from p2_hand
+async function findMostPointMaterial() {
+    const possibleMaterials = await search_materials(arrayToObj(p2_hand));
+    
+    if (possibleMaterials.length === 0) {
+        console.log("p2_hand 内で作成可能な物質はありません。");
+    } else {
+        const highestMaterial = possibleMaterials.reduce((max, material) => 
+            material.c > max.c ? material : max, possibleMaterials[0]);
+        console.log(`p2_hand 内で最もポイントが高い物質: ${highestMaterial.a} (ポイント: ${highestMaterial.c})`);
     }
+}
+
+
+
+
+
+// ========== game reset and start ==========
+let materials = []
+let imageCache = {}
+// init web game
+document.addEventListener('DOMContentLoaded', async function () {
+    await preloadBackgroundImages();
+    await preloadImages();
+    await loadModel();
+    await init_json();
+    await initializeMaterials();
+    document.getElementById("loading").style.display = "none";
+    addInputModelDiv();
+    addLoadingButton();
+    document.getElementById("startButton").style.display = "inline";
+});
+// initialize hand
+function random_hand() {
+    for (let i = 0; i < card_num; i++) {
+        p1_hand.push(drawCard());
+        p2_hand.push(drawCard());
+    };
+}
+// load materials from url
+async function loadMaterials(url) {
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (!data.material || !Array.isArray(data.material)) {
+            document.getElementById("Attention2").style.display = "inline";
+            return [];
+        }
+        document.getElementById("Attention2").style.display = "none";
+        return data.material;
+    } catch (error) {
+        console.error("Error fetching compounds:", error);  // Log the error to the console for debugging
+        document.getElementById("Attention2").style.display = "inline";
+        return []; // Return an empty array in case of error
+    }
+}
+// preload card images
+async function preloadImages() {
+    const imageNumbers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 26, 29, 30, 53];
+
+    // 画像読み込みのPromise配列を作成
+    const promises = imageNumbers.map(async (num) => {
+        try {
+            const imageUrl = `../images/${num}.webp`;
+            const response = await fetch(imageUrl);
+            const blob = await response.blob();
+            imageCache[num] = blob;
+        } catch (error) {
+            console.error(`Image loading error: ${num}`, error);
+        }
+    });
+
+    // 並列実行を待つ
+    await Promise.all(promises);
+    console.log("✅ 全画像のプリロード完了");
+}
+// preload background image
+async function preloadBackgroundImages() {
+    const isMobile = window.innerWidth <= 730;
+    const url = isMobile
+        ? '../images/start_screen_mobile.webp'
+        : '../images/start_screen_desktop.webp';
+
+    try {
+        const response = await fetch(url, { cache: "force-cache" });
+        const blob = await response.blob();
+        const objectURL = URL.createObjectURL(blob);
+
+        // 一応画像読み込ませておく（なくてもOK）
+        const img = new Image();
+        img.src = objectURL;
+        img.style.display = "none";
+        document.body.appendChild(img);
+
+        // 💥 ここで背景にセット
+        const screen = document.getElementById("startScreen");
+        screen.style.backgroundImage = `url('${objectURL}')`;
+
+        console.log("✅ 背景画像読み込み＆設定完了:", url);
+    } catch (err) {
+        console.error("背景画像の読み込みに失敗", url, err);
+    }
+}
+// load materials JSON file (initialize)
+async function init_json() {
+    materials = await loadMaterials("https://kurorosuke.github.io/compounds/obf_extended.json");
+    let outputNum = model.outputs[0].shape[1];
+    if (outputNum!=materials.length) {
+        const att = document.getElementById("Attention4");att.innerHTML = `モデルは出力${outputNum}個に対応していますが、compoundsは${materials.length}個です`;
+        att.style.display="inline";
+    } else {
+        document.getElementById("Attention4").style.display = "none";
+    }
+}
+// start game
+document.getElementById("startButton").addEventListener("click", function() {
+    document.getElementById("startScreen").style.display = "none";
+    document.getElementById("p1_area").style.display = "block";
+    document.getElementById("dropped_area_p1").style.display = "block";
+    document.getElementById("dropped_area_p2").style.display = "block";
+    document.getElementById("p2_area").style.display = "block";
+    document.getElementById("gameRuleButton").style.display = "none";
+    document.getElementById("predictResultContainer").style.display = "none";
+    document.getElementById("centerLine").style.display = "block";
+    resetGame();
+});
+// reset game state
+function resetGame() {
+    p1_hand = [];
+    p2_hand = [];
+    dropped_cards_p1 = [];
+    dropped_cards_p2 = [];
+    p1_selected_card = [];
+    p2_selected_card = [];
+    time = "game";
+    turn = Math.random() <= 0.5 ? "p1" : "p2";
+
+    document.getElementById("p1_point").innerHTML = `ポイント：${p1_point}`;
+    document.getElementById("p2_point").innerHTML = `ポイント：${p2_point}`;
+    document.getElementById("p2_explain").innerHTML = "　";
+    document.getElementById("predictResult").innerHTML = "　";
+    const ExplainArea = document.getElementById("p1_explain")
+    ExplainArea.innerHTML = "　";
+    ExplainArea.style.color = "black";
+    ExplainArea.style.fontSize = "16px";
+
+    document.getElementById("generate_button").style.display = "inline";
+    document.getElementById("done_button").style.display = "none";
+    document.getElementById("nextButton").style.display = "none";
+    deck = [...elements, ...elements];
+    deck = shuffle(deck);
+
+    const p1_hand_element = document.getElementById("p1_hand");
+    const p2_hand_element = document.getElementById("p2_hand");
+    p1_hand_element.innerHTML = "";
+    p2_hand_element.innerHTML = "";
+
+    const dropped_area_p1_element = document.getElementById("dropped_area_p1");
+    const dropped_area_p2_element = document.getElementById("dropped_area_p2");
+    dropped_area_p1_element.innerHTML = "";
+    dropped_area_p2_element.innerHTML = "";
+
+    random_hand();
+    view_p1_hand();
+    view_p2_hand();
+    document.getElementById("hint_button").style.display = "inline";
+
+    if (turn === "p1") {
+        setTimeout(() => p1_action(), 500);
+    }
+}
+// return to screen
+function returnToStartScreen() {
+    document.getElementById("startScreen").style.display = "flex";
+    document.getElementById("p1_area").style.display = "none";
+    document.getElementById("dropped_area_p1").style.display = "none";
+    document.getElementById("dropped_area_p2").style.display = "none";
+    document.getElementById("p2_area").style.display = "none";
+    document.getElementById("gameRuleButton").style.display = "block";
+    document.getElementById("predictResultContainer").style.display = "none";
+    document.getElementById("centerLine").style.display = "none";
 }
