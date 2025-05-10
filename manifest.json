@@ -1,7 +1,7 @@
 {
   "name": "Element Battle",
   "short_name": "WebGame",
-  "start_url": "Code/game.html",
+  "start_url": "PEB3AI/Code/game.html",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",
@@ -9,12 +9,12 @@
     {
       "src": "icons/icon-192.png",
       "sizes": "192x192",
-      "type": "images/start_screen_mobile.webp"
+      "type": "PEB3AI/images/start_screen_mobile.webp"
     },
     {
       "src": "icons/icon-512.png",
       "sizes": "512x512",
-      "type": "images/start_screen_mobile.webp"
+      "type": "PEB3AI/images/start_screen_mobile.webp"
     }
   ]
 }
