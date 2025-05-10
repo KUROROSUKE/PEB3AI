@@ -1,8 +1,8 @@
 const CACHE_NAME = 'my-game-cache-v1';
 const urlsToCache = [
-  'https://kurorosuke.github.io/PEB3AI/Code/game.html',
-  'https://kurorosuke.github.io/PEB3AI/Code/game.css',
-  'https://kurorosuke.github.io/PEB3AI/Code/game.js',
+  'https://kurorosuke.github.io/PEB3AI/Code/game.min.html',
+  'https://kurorosuke.github.io/PEB3AI/Code/game.min.css',
+  'https://kurorosuke.github.io/PEB3AI/Code/game.min.js',
   'https://kurorosuke.github.io/PEB3AI/images/start_screen_mobile.webp',
 ];
 
