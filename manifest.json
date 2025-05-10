@@ -1,7 +1,7 @@
 {
   "name": "Element Battle",
   "short_name": "WebGame",
-  "start_url": "Code/game.min.html",
+  "start_url": "Code/game.html",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",
