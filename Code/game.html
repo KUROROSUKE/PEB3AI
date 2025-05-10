@@ -109,6 +109,8 @@
         <p>詳しいルール： <a href="https://kurorosuke.github.io/EB3/GameRules.html">GameRules</a></p>
         <label>コールドスコア： <input type="number" id="winPointInput" value="250" min="1"></label><br>
         <label>ゲームターン数： <input type="number" id="winTurnInput" value="10" min="1"></label><br>
+        <label>学習するか　　： <input type="checkbox" id="IsTraining" checked></label><br>
+        <label>相手しきい値　： <input type="number" id="threshold" value="20"></label><br>
         <div style="padding:0 5% 0 0">
             <label>化合物のURL(JSON)：
             <select id="compoundsSelection" onchange="showInputTag()">
