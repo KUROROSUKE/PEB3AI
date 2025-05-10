@@ -53,6 +53,15 @@
         <div class="spinner"></div>
         <p>読み込み中...</p>
     </div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('Service Worker registered:', reg.scope))
+            .catch(err => console.error('Service Worker registration failed:', err));
+        });
+      }
+    </script>
     <div id="startScreen">
         <button id="startButton" style="display: none;">スタート</button>
         <img src="../images/setting_icon.webp" id="setting_icon" alt="setting">
