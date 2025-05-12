@@ -1,4 +1,3 @@
-
 // declare variables
 let p1_hand = []; let p2_hand = []
 let p1_point = 0; let p2_point = 0
@@ -1094,7 +1093,7 @@ async function saveWinSettings() {
 
     // グローバル変数に反映
     threshold = thresholdInput;
-    WIN_POINT = winPointInput;
+    WIN_POINT = base_point_bonus ? 250 : winPointInput;
     WIN_TURN = winTurnInput;
     IsTraining = isTraining;
 
