@@ -1084,44 +1084,24 @@ async function saveWinSettings() {
 
     // 材料読み込み
     let materials;
-    try {
-        materials = await loadMaterials(compoundsURL);
-    } catch (error) {
-        alert("compounds の読み込みに失敗しました。URLを確認してください。");
-        console.error(error);
-        return;
-    }
-
-    // 出力数とcompounds数の整合性チェック
-    if (outputNum !== materials.length) {
-        const attention = document.getElementById("Attention4");
-        attention.innerHTML = `モデルは出力 ${outputNum} 個に対応していますが、compounds は ${materials.length} 個です`;
-        attention.style.display = "inline";
-    } else {
-        document.getElementById("Attention4").style.display = "none";
-    }
+    materials = await loadMaterials(compoundsURL);
 
     // threshold の検証
-    const maxThreshold = Math.max(...materials.map(e => e.c));
     if (isNaN(thresholdInput) || thresholdInput < 0) {
         alert("threshold は 0以上の値にしてください。");
-        return;
-    }
-    if (thresholdInput >= maxThreshold) {
-        alert(`threshold は ${maxThreshold} 以下の値にしてください。`);
         return;
     }
 
     // グローバル変数に反映
     threshold = thresholdInput;
-    WIN_POINT = base_point_bonus ? "develop" : winPointInput;
+    WIN_POINT = winPointInput;
     WIN_TURN = winTurnInput;
     IsTraining = isTraining;
 
     // 設定ウィンドウを閉じる
     closeWinSettings();
 }
-c// close Modal
+// close Modal
 function closeWinSettings() {
     document.getElementById("winSettingsModal").style.display = "none";
 }
