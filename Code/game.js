@@ -1055,20 +1055,21 @@ async function saveWinSettings() {
     let WinThreshold = document.getElementById("threshold").value;
     IsTraining = document.getElementById("IsTraining").value;
 
-    if (isNaN(winPointInput) || winPointInput == "develop") {
+    if (winPointInput == "develop") {
         alert("ポイントを倍にします");
         base_point_bonus = true;
     } else {
         winPointInput = parseInt(winPointInput,10)
         if (isNaN(winPointInput) || winPointInput < 1) {
-            alert("WIN_POINT は 1 以上の数値を入力してください。");
-        } else if (isNaN(winPointInput) || winPointInput > 999) {
-            alert("WIN_POINT の最大値は 999 です。");
+            alert("コールドスコア は 1 以上 999 以下の数値を入力してください。");
+            return;
+        } else if (winPointInput > 999) {
+            alert("コールドスコア の最大値は 999 です。");
             return;
         }
     }
     if (isNaN(winTurnInput) || winTurnInput < 1) {
-        alert("WIN_TURN は 1 以上の数値を入力してください。");
+        alert("ターン数 は 1 以上の数値を入力してください。");
         return;
     }
     let compoundsValue = document.getElementById("compoundsSelection").value;
