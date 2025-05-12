@@ -1059,9 +1059,7 @@ async function saveWinSettings() {
     const compoundsURL = compoundsSelection !== "url"
         ? `https://kurorosuke.github.io/compounds/${compoundsSelection}.json`
         : document.getElementById("compoundsURL").value;
-
     let winPointInput;
-    let base_point_bonus = false; // ← 追加：初期値 false
 
     // "develop" モード確認
     if (winPointRaw === "develop") {
