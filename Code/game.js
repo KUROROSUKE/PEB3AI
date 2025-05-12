@@ -1049,7 +1049,7 @@ let selectingModel;
 let IsTraining; // 「学習するか」フラグ
 // save Modal settings
 async function saveWinSettings() {
-    let winPointInput = parseInt(document.getElementById("winPointInput").value, 10);
+    let winPointInput = document.getElementById("winPointInput").value;
     let winTurnInput = parseInt(document.getElementById("winTurnInput").value, 10);
     let WinThreshold = document.getElementById("threshold").value;
     IsTraining = document.getElementById("IsTraining").value;
@@ -1057,11 +1057,14 @@ async function saveWinSettings() {
     if (isNaN(winPointInput) || winPointInput == "develop") {
         alert("ポイントを倍にします");
         base_point_bonus = true;
-    } else if (isNaN(winPointInput) || winPointInput < 1) {
-        alert("WIN_POINT は 1 以上の数値を入力してください。");
-    } else if (isNaN(winPointInput) || winPointInput > 999) {
-        alert("WIN_POINT の最大値は 999 です。");
-        return;
+    } else {
+        winPointInput = parseInt(parseInt,10)
+        if (isNaN(winPointInput) || winPointInput < 1) {
+            alert("WIN_POINT は 1 以上の数値を入力してください。");
+        } else if (isNaN(winPointInput) || winPointInput > 999) {
+            alert("WIN_POINT の最大値は 999 です。");
+            return;
+        }
     }
     if (isNaN(winTurnInput) || winTurnInput < 1) {
         alert("WIN_TURN は 1 以上の数値を入力してください。");
