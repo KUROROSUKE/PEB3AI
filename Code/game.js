@@ -1050,7 +1050,7 @@ let IsTraining; // 「学習するか」フラグ
 // save Modal settings
 async function saveWinSettings() {
     // 入力取得
-    const winPointRaw = document.getElementById("winPointInput").value;
+    const winPointRaw = parseInt(document.getElementById("winPointInput").value, 10);
     const winTurnInput = parseInt(document.getElementById("winTurnInput").value, 10);
     const thresholdInput = parseFloat(document.getElementById("threshold").value);
     const isTraining = document.getElementById("IsTraining").value;
@@ -1060,24 +1060,22 @@ async function saveWinSettings() {
         : document.getElementById("compoundsURL").value;
     let winPointInput;
 
-    // "develop" モード確認
-    if (winPointRaw === "develop") {
-        base_point_bonus = true;
-        alert("ポイント２倍にします！");
-    } else {
-        winPointInput = parseInt(winPointRaw, 10);
-        if (isNaN(winPointInput) || winPointInput < 1) {
-            alert("WIN_POINT は 1 以上の数値を入力してください。");
-            return;
-        }
-        if (winPointInput > 999) {
-            alert("WIN_POINT の最大値は 999 です。");
-            return;
-        }
+    if (isNaN(winPointInput)) {
+        alert("コールドスコア は 1 以上 999 以下の数値を入力してください。");
+        return;
+    } else if (winPointInput < 1) {
+        alert("コールドスコア は 1 以上の数値を入力してください。");
+        return;
+    } else if (winPointInput > 999) {
+        if (winPointInput == 20100524) {
+            alert("開発モード！ポイント２倍！")
+        };
+        alert("コールドスコア の最大値は 999 です。");
+        return;
     }
 
     if (isNaN(winTurnInput) || winTurnInput < 1) {
-        alert("WIN_TURN は 1 以上の数値を入力してください。");
+        alert("ターン数 は 1 以上の数値を入力してください。");
         return;
     }
 
@@ -1087,13 +1085,13 @@ async function saveWinSettings() {
 
     // threshold の検証
     if (isNaN(thresholdInput) || thresholdInput < 0) {
-        alert("threshold は 0以上の値にしてください。");
+        alert("相手しきい値 は 0以上の値にしてください。");
         return;
     }
 
     // グローバル変数に反映
     threshold = thresholdInput;
-    WIN_POINT = base_point_bonus ? 250 : winPointInput;
+    WIN_POINT = winPointInput;
     WIN_TURN = winTurnInput;
     IsTraining = isTraining;
 
