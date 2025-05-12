@@ -1,3 +1,4 @@
+
 // declare variables
 let p1_hand = []; let p2_hand = []
 let p1_point = 0; let p2_point = 0
@@ -1058,7 +1059,7 @@ async function saveWinSettings() {
         alert("ポイントを倍にします");
         base_point_bonus = true;
     } else {
-        winPointInput = parseInt(parseInt,10)
+        winPointInput = parseInt(winPointInput,10)
         if (isNaN(winPointInput) || winPointInput < 1) {
             alert("WIN_POINT は 1 以上の数値を入力してください。");
         } else if (isNaN(winPointInput) || winPointInput > 999) {
@@ -1074,25 +1075,7 @@ async function saveWinSettings() {
     if (compoundsValue != "url") {
         var compoundsURL = `https://kurorosuke.github.io/compounds/${compoundsValue}.json`;
     } else {
-        var compoundsURL = document.getElementById("compoundsURL").value;
-    }
-    materials = await loadMaterials(compoundsURL);
-    if (outputNum!=materials.length) {const att = document.getElementById("Attention4");att.innerHTML = `モデルは出力${outputNum}個に対応していますが、compoundsは${materials.length}個です`;att.style.display="inline";} else {document.getElementById("Attention4").style.display = "none";}
-
-    const maxValue = Math.max(...materials.map(item => item.c));
-    if (WinThreshold < 0) {
-        alert("threshold は 0以上の値にしてください。");
-        return;
-    } else if (WinThreshold >= maxValue) {
-        alert(`threshold は ${maxValue}以下の値にしてください。`);
-        return;
-    }
-    
-    threshold = WinThreshold;
-    WIN_POINT = winPointInput;
-    WIN_TURN = winTurnInput;
-    closeWinSettings();
-}
+  _
 // close Modal
 function closeWinSettings() {
     document.getElementById("winSettingsModal").style.display = "none";
