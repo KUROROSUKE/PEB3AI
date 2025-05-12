@@ -1050,7 +1050,7 @@ let IsTraining; // 「学習するか」フラグ
 // save Modal settings
 async function saveWinSettings() {
     // 入力取得
-    const winPointRaw = parseInt(document.getElementById("winPointInput").value, 10);
+    const winPointInput = parseInt(document.getElementById("winPointInput").value, 10);
     const winTurnInput = parseInt(document.getElementById("winTurnInput").value, 10);
     const thresholdInput = parseFloat(document.getElementById("threshold").value);
     const isTraining = document.getElementById("IsTraining").value;
@@ -1058,7 +1058,6 @@ async function saveWinSettings() {
     const compoundsURL = compoundsSelection !== "url"
         ? `https://kurorosuke.github.io/compounds/${compoundsSelection}.json`
         : document.getElementById("compoundsURL").value;
-    let winPointInput;
 
     if (isNaN(winPointInput)) {
         alert("コールドスコア は 1 以上 999 以下の数値を入力してください。");
