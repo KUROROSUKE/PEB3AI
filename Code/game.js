@@ -787,6 +787,7 @@ async function checkRon(droppedCard) {
 
 
 // ========== done processes ==========
+let base_point_bonus = false;
 // get dora
 async function get_dora() {
     return element[Math.round(Math.random()*23)]
@@ -839,6 +840,10 @@ async function done(who, ronMaterial, droppedCard, p1_ron = false, p2_ron = fals
     // 得点を更新
     p1_point += await thisGame_p1_point;
     p2_point += await thisGame_p2_point;
+
+    if (base_point_bonus) {
+        p2_point += await thisGame_p2_point;
+    }
 
     // 画面に反映
     document.getElementById("p2_point").innerHTML += `+${thisGame_p2_point}`;
@@ -1049,11 +1054,12 @@ async function saveWinSettings() {
     let WinThreshold = document.getElementById("threshold").value;
     IsTraining = document.getElementById("IsTraining").value;
 
-    if (isNaN(winPointInput) || winPointInput < 1) {
+    if (isNaN(winPointInput) || winPointInput == "develop") {
+        alert("ポイントを倍にします");
+        base_point_bonus = true;
+    } else if (isNaN(winPointInput) || winPointInput < 1) {
         alert("WIN_POINT は 1 以上の数値を入力してください。");
-        return;
-    }
-    if (isNaN(winPointInput) || winPointInput > 999) {
+    } else if (isNaN(winPointInput) || winPointInput > 999) {
         alert("WIN_POINT の最大値は 999 です。");
         return;
     }
