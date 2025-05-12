@@ -1050,34 +1050,80 @@ let selectingModel;
 let IsTraining; // 「学習するか」フラグ
 // save Modal settings
 async function saveWinSettings() {
-    let winPointInput = document.getElementById("winPointInput").value;
-    let winTurnInput = parseInt(document.getElementById("winTurnInput").value, 10);
-    let WinThreshold = document.getElementById("threshold").value;
-    IsTraining = document.getElementById("IsTraining").value;
+    // 入力取得
+    const winPointRaw = document.getElementById("winPointInput").value;
+    const winTurnInput = parseInt(document.getElementById("winTurnInput").value, 10);
+    const thresholdInput = parseFloat(document.getElementById("threshold").value);
+    const isTraining = document.getElementById("IsTraining").value;
+    const compoundsSelection = document.getElementById("compoundsSelection").value;
+    const compoundsURL = compoundsSelection !== "url"
+        ? `https://kurorosuke.github.io/compounds/${compoundsSelection}.json`
+        : document.getElementById("compoundsURL").value;
 
-    if (winPointInput == "develop") {
-        alert("ポイントを倍にします");
+    let winPointInput;
+    let base_point_bonus = false; // ← 追加：初期値 false
+
+    // "develop" モード確認
+    if (winPointRaw === "develop") {
         base_point_bonus = true;
+        alert("ポイント２倍にします！");
     } else {
-        winPointInput = parseInt(winPointInput,10)
+        winPointInput = parseInt(winPointRaw, 10);
         if (isNaN(winPointInput) || winPointInput < 1) {
-            alert("コールドスコア は 1 以上 999 以下の数値を入力してください。");
+            alert("WIN_POINT は 1 以上の数値を入力してください。");
             return;
-        } else if (winPointInput > 999) {
-            alert("コールドスコア の最大値は 999 です。");
+        }
+        if (winPointInput > 999) {
+            alert("WIN_POINT の最大値は 999 です。");
             return;
         }
     }
+
     if (isNaN(winTurnInput) || winTurnInput < 1) {
-        alert("ターン数 は 1 以上の数値を入力してください。");
+        alert("WIN_TURN は 1 以上の数値を入力してください。");
         return;
     }
-    let compoundsValue = document.getElementById("compoundsSelection").value;
-    if (compoundsValue != "url") {
-        var compoundsURL = `https://kurorosuke.github.io/compounds/${compoundsValue}.json`;
+
+    // 材料読み込み
+    let materials;
+    try {
+        materials = await loadMaterials(compoundsURL);
+    } catch (error) {
+        alert("compounds の読み込みに失敗しました。URLを確認してください。");
+        console.error(error);
+        return;
+    }
+
+    // 出力数とcompounds数の整合性チェック
+    if (outputNum !== materials.length) {
+        const attention = document.getElementById("Attention4");
+        attention.innerHTML = `モデルは出力 ${outputNum} 個に対応していますが、compounds は ${materials.length} 個です`;
+        attention.style.display = "inline";
     } else {
-  _
-// close Modal
+        document.getElementById("Attention4").style.display = "none";
+    }
+
+    // threshold の検証
+    const maxThreshold = Math.max(...materials.map(e => e.c));
+    if (isNaN(thresholdInput) || thresholdInput < 0) {
+        alert("threshold は 0以上の値にしてください。");
+        return;
+    }
+    if (thresholdInput >= maxThreshold) {
+        alert(`threshold は ${maxThreshold} 以下の値にしてください。`);
+        return;
+    }
+
+    // グローバル変数に反映
+    threshold = thresholdInput;
+    WIN_POINT = base_point_bonus ? "develop" : winPointInput;
+    WIN_TURN = winTurnInput;
+    IsTraining = isTraining;
+
+    // 設定ウィンドウを閉じる
+    closeWinSettings();
+}
+c// close Modal
 function closeWinSettings() {
     document.getElementById("winSettingsModal").style.display = "none";
 }
