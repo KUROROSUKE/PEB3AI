@@ -1303,16 +1303,32 @@ function removeModelOnSetting(selectModelName) {
 }
 // download Model from indexedDB
 async function downloadModel(NameOfModel) {
-    console.log(NameOfModel);
     try {
         // IndexedDB からモデルを取得
         const model = await tf.loadLayersModel(`indexeddb://${NameOfModel}`);
 
-        // モデルを indexedDB にエクスポート
-        await model.save(`downloads://${NameOfModel}`);
-        alert(`${NameOfModel} をダウンロードしました`);
+        // JSON ファイルを作成
+        const jsonBlob = new Blob([JSON.stringify(model.toJSON())], { type: 'application/json' });
 
-        console.log(`モデル ${NameOfModel} をダウンロードフォルダに保存しました！`);
+        // 重みファイルを作成
+        const weightBuffer = await model.save('weights://');
+        const weightBlob = new Blob([weightBuffer], { type: 'application/octet-stream' });
+
+        // ダウンロードリンクを作成
+        const downloadFile = (blob, filename) => {
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        // JSON ファイルと weight ファイルをそれぞれダウンロード
+        downloadFile(jsonBlob, `${NameOfModel}.json`);
+        downloadFile(weightBlob, `${NameOfModel}.weights`);
+
+        console.log(`モデル ${NameOfModel} の JSON と weight ファイルをダウンロードしました！`);
     } catch (error) {
         console.error(`モデル ${NameOfModel} のダウンロードに失敗しました`, error);
     };
