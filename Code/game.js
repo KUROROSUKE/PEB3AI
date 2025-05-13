@@ -1158,25 +1158,34 @@ function addLoadingButton() {
     NewModelOption.style.textAlign = "center";
     const NewModelOptionButton = document.createElement("label");
     NewModelOptionButton.id = "NewModelOptionButton";
-    NewModelOptionButton.innerHTML = "モデルのJSONファイルを選択";
+    NewModelOptionButton.innerHTML = "モデルのJSONファイル（.json）とBINファイル（.weight.bin）を一つずつ選択";
     NewModelOptionButton.onclick = function() {document.getElementById("loadingModelButton").click()};
     let loadingModelButton = document.createElement("input");
     loadingModelButton.innerHTML = "読込";
     loadingModelButton.id = "loadingModelButton";
     loadingModelButton.type = "file";
-    loadingModelButton.accept=".json";
+    loadingModelButton.accept = [".json", ".bin"];
+    loadingModelButton.multiple = true;
     loadingModelButton.style.display="none";
     document.getElementById("Attention3").style.display = "none";
     loadingModelButton.addEventListener('change', async (event) => {
         const files = event.target.files;
+        if (files.length != 2) {alert("モデルのJSONファイル（.json）とBINファイル（.weight.bin）を一つずつ選択してください1"); return false;}
         const jsonFile = Array.from(files).find(file => file.name.endsWith('.json'));
-        const weightsFiles = Array.from(files).filter(file => file.name.endsWith('.bin'));
+        const weightsFile = Array.from(files).filter(file => file.name.endsWith('.bin'))[0];
+        console.log(jsonFile);
+        console.log(weightsFile);
+        if (jsonFile == undefined || weightsFile == undefined) {alert("モデルのJSONファイル（.json）とBINファイル（.weight.bin）を一つずつ選択してください2"); return false;}
         const models = await getModelNames();
         do {
             userInput = prompt("使われていない名前を入力してください:");
         } while (models.includes(userInput));
         modelName = userInput;
-        model = await tf.loadLayersModel(tf.io.browserFiles([jsonFile, ...weightsFiles]));
+        // const uploadJSONInput = document.getElementById('upload-json');
+        // const uploadWeightsInput = document.getElementById('upload-weights');
+        model = await tf.loadLayersModel(tf.io.browserFiles([jsonFile, weightsFile]));
+        // https://js.tensorflow.org/api/latest/?hl=ja#io.browserFiles
+        // model = await tf.loadLayersModel(tf.io.browserFiles([jsonFile, weightsFiles]));
         await saveModel();
         addOptions();
         document.getElementById("loadingModelButton").value = "";
@@ -1304,35 +1313,29 @@ function removeModelOnSetting(selectModelName) {
 // download Model from indexedDB
 async function downloadModel(NameOfModel) {
     try {
-        // IndexedDB からモデルをロード
+        console.log(NameOfModel);
         const model = await tf.loadLayersModel(`indexeddb://${NameOfModel}`);
 
-        // JSON ファイルの作成
-        const jsonBlob = new Blob([JSON.stringify(model.toJSON())], { type: 'application/json' });
+        /*
+        const files = {};
+        const handler = tf.io.withSaveHandler(async (data) => {
+            files.json = new Blob([JSON.stringify({
+                modelTopology: data.modelTopology,
+                weightsManifest: data.weightManifest
+            })], { type: 'application/json' });
+            files.weights = new Blob([data.weightData], { type: 'application/octet-stream' });
+            return { modelArtifactsInfo: {} };
+        });
+        */
 
-        // 重みファイル（バイナリデータ）の取得
-        const weightBlob = new Blob([await model.getWeights()], { type: 'application/octet-stream' });
+        // await model.save(handler);
+        await model.save(`downloads://${NameOfModel}`);
 
-        // ダウンロード関数
-        const downloadFile = (blob, filename) => {
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        };
-
-        // JSON と weight をそれぞれダウンロード
-        downloadFile(jsonBlob, `${NameOfModel}.json`);
-        downloadFile(weightBlob, `${NameOfModel}.weights.bin`);
-
-        console.log(`モデル ${NameOfModel} の JSON と weight をダウンロードしました！`);
+        console.log(`モデル ${NameOfModel} の JSON と weights を正しく保存しました！`);
     } catch (error) {
-        console.error(`モデル ${NameOfModel} のダウンロードに失敗しました`, error);
+        console.error(`モデル ${NameOfModel} の保存に失敗しました`, error);
     }
 }
-
 // close Model Modal
 function closeModelModal() {
     removeTarget = [];
