@@ -1164,7 +1164,7 @@ function addLoadingButton() {
     loadingModelButton.innerHTML = "読込";
     loadingModelButton.id = "loadingModelButton";
     loadingModelButton.type = "file";
-    loadingModelButton.accept = [".json", ".bin"];
+    loadingModelButton.accept = [".json", ".weight.bin"];
     loadingModelButton.multiple = true;
     loadingModelButton.style.display="none";
     document.getElementById("Attention3").style.display = "none";
