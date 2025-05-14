@@ -1313,24 +1313,25 @@ function removeModelOnSetting(selectModelName) {
 // download Model from indexedDB (iOS対応)
 async function downloadModel(NameOfModel) {
     try {
-        console.log(NameOfModel);
         const model = await tf.loadLayersModel(`indexeddb://${NameOfModel}`);
 
         const saveHandler = tf.io.withSaveHandler(async (data) => {
-            // JSON部分をdata URIで処理（iOS対策）
+            // JSONをBlobで保存（iOS対策）
             const modelJSON = JSON.stringify({
                 modelTopology: data.modelTopology,
                 weightsManifest: data.weightManifest
             });
-            const jsonDataUri = "data:text/json;charset=utf-8," + encodeURIComponent(modelJSON);
+            const jsonBlob = new Blob([modelJSON], { type: 'application/json' });
+            const jsonURL = URL.createObjectURL(jsonBlob);
             const jsonLink = document.createElement('a');
-            jsonLink.href = jsonDataUri;
+            jsonLink.href = jsonURL;
             jsonLink.download = `${NameOfModel}.json`;
             document.body.appendChild(jsonLink);
             jsonLink.click();
             document.body.removeChild(jsonLink);
+            URL.revokeObjectURL(jsonURL);
 
-            // WeightsはBlobで処理（こちらはiOSでも正常動作することが多い）
+            // WeightsはBlobで保存（こちらは元から対応）
             const weightsBlob = new Blob([data.weightData], { type: 'application/octet-stream' });
             const weightsURL = URL.createObjectURL(weightsBlob);
             const weightsLink = document.createElement('a');
@@ -1339,9 +1340,16 @@ async function downloadModel(NameOfModel) {
             document.body.appendChild(weightsLink);
             weightsLink.click();
             document.body.removeChild(weightsLink);
-            URL.revokeObjectURL(weightsURL); // 後始末
+            URL.revokeObjectURL(weightsURL);
 
-            return { modelArtifactsInfo: {} };
+            return {
+                modelArtifactsInfo: {
+                    dateSaved: new Date(),
+                    modelTopologyType: 'JSON',
+                    modelTopologyBytes: modelJSON.length,
+                    weightDataBytes: data.weightData.byteLength,
+                }
+            };
         });
 
         await model.save(saveHandler);
@@ -1350,6 +1358,7 @@ async function downloadModel(NameOfModel) {
         console.error(`モデル ${NameOfModel} の保存に失敗しました`, error);
     }
 }
+
 // close Model Modal
 function closeModelModal() {
     removeTarget = [];
