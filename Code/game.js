@@ -1310,55 +1310,32 @@ function removeModelOnSetting(selectModelName) {
     removeTarget.push(selectModelName);
     document.getElementById(selectModelName).remove();
 }
-// download Model from indexedDB (iOS対応)
+// download Model from indexedDB
 async function downloadModel(NameOfModel) {
     try {
+        console.log(NameOfModel);
         const model = await tf.loadLayersModel(`indexeddb://${NameOfModel}`);
 
-        const saveHandler = tf.io.withSaveHandler(async (data) => {
-            // JSONをBlobで保存（iOS対策）
-            const modelJSON = JSON.stringify({
+        /*
+        const files = {};
+        const handler = tf.io.withSaveHandler(async (data) => {
+            files.json = new Blob([JSON.stringify({
                 modelTopology: data.modelTopology,
                 weightsManifest: data.weightManifest
-            });
-            const jsonBlob = new Blob([modelJSON], { type: 'application/json' });
-            const jsonURL = URL.createObjectURL(jsonBlob);
-            const jsonLink = document.createElement('a');
-            jsonLink.href = jsonURL;
-            jsonLink.download = `${NameOfModel}.json`;
-            document.body.appendChild(jsonLink);
-            jsonLink.click();
-            document.body.removeChild(jsonLink);
-            URL.revokeObjectURL(jsonURL);
-
-            // WeightsはBlobで保存（こちらは元から対応）
-            const weightsBlob = new Blob([data.weightData], { type: 'application/octet-stream' });
-            const weightsURL = URL.createObjectURL(weightsBlob);
-            const weightsLink = document.createElement('a');
-            weightsLink.href = weightsURL;
-            weightsLink.download = `${NameOfModel}.weights.bin`;
-            document.body.appendChild(weightsLink);
-            weightsLink.click();
-            document.body.removeChild(weightsLink);
-            URL.revokeObjectURL(weightsURL);
-
-            return {
-                modelArtifactsInfo: {
-                    dateSaved: new Date(),
-                    modelTopologyType: 'JSON',
-                    modelTopologyBytes: modelJSON.length,
-                    weightDataBytes: data.weightData.byteLength,
-                }
-            };
+            })], { type: 'application/json' });
+            files.weights = new Blob([data.weightData], { type: 'application/octet-stream' });
+            return { modelArtifactsInfo: {} };
         });
+        */
 
-        await model.save(saveHandler);
+        // await model.save(handler);
+        await model.save(`downloads://${NameOfModel}`);
+
         console.log(`モデル ${NameOfModel} の JSON と weights を正しく保存しました！`);
     } catch (error) {
         console.error(`モデル ${NameOfModel} の保存に失敗しました`, error);
     }
 }
-
 // close Model Modal
 function closeModelModal() {
     removeTarget = [];
