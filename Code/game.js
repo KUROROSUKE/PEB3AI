@@ -1164,7 +1164,7 @@ function addLoadingButton() {
     loadingModelButton.innerHTML = "読込";
     loadingModelButton.id = "loadingModelButton";
     loadingModelButton.type = "file";
-    loadingModelButton.accept = [".json",".bin"];
+    loadingModelButton.accept = [".json", ".bin"];
     loadingModelButton.multiple = true;
     loadingModelButton.style.display="none";
     document.getElementById("Attention3").style.display = "none";
@@ -1316,39 +1316,38 @@ async function downloadModel(NameOfModel) {
         console.log(NameOfModel);
         const model = await tf.loadLayersModel(`indexeddb://${NameOfModel}`);
 
-        const files = {};
-        const handler = tf.io.withSaveHandler(async (data) => {
-            files.json = new Blob([JSON.stringify({
+        const saveHandler = tf.io.withSaveHandler(async (data) => {
+            const modelJSON = JSON.stringify({
                 modelTopology: data.modelTopology,
                 weightsManifest: data.weightManifest
-            })], { type: 'application/json' });
+            });
+            const jsonBlob = new Blob([modelJSON], { type: 'application/json' });
+            const weightsBlob = new Blob([data.weightData], { type: 'application/octet-stream' });
 
-            files.weights = new Blob([data.weightData], { type: 'application/octet-stream' });
-
-            // JSONのダウンロードリンクを作成
-            const jsonUrl = URL.createObjectURL(files.json);
-            const weightsUrl = URL.createObjectURL(files.weights);
-
+            // JSON
+            const jsonURL = URL.createObjectURL(jsonBlob);
             const jsonLink = document.createElement('a');
-            jsonLink.href = jsonUrl;
+            jsonLink.href = jsonURL;
             jsonLink.download = `${NameOfModel}.json`;
             jsonLink.click();
 
+            // Weights
+            const weightsURL = URL.createObjectURL(weightsBlob);
             const weightsLink = document.createElement('a');
-            weightsLink.href = weightsUrl;
+            weightsLink.href = weightsURL;
             weightsLink.download = `${NameOfModel}.weights.bin`;
             weightsLink.click();
 
             return { modelArtifactsInfo: {} };
         });
 
-        await model.save(handler);
+        await model.save(saveHandler);
 
         console.log(`モデル ${NameOfModel} の JSON と weights を正しく保存しました！`);
     } catch (error) {
         console.error(`モデル ${NameOfModel} の保存に失敗しました`, error);
     }
-
+}
 // close Model Modal
 function closeModelModal() {
     removeTarget = [];
