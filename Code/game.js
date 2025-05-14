@@ -1316,26 +1316,39 @@ async function downloadModel(NameOfModel) {
         console.log(NameOfModel);
         const model = await tf.loadLayersModel(`indexeddb://${NameOfModel}`);
 
-        /*
         const files = {};
         const handler = tf.io.withSaveHandler(async (data) => {
             files.json = new Blob([JSON.stringify({
                 modelTopology: data.modelTopology,
                 weightsManifest: data.weightManifest
             })], { type: 'application/json' });
+
             files.weights = new Blob([data.weightData], { type: 'application/octet-stream' });
+
+            // JSONのダウンロードリンクを作成
+            const jsonUrl = URL.createObjectURL(files.json);
+            const weightsUrl = URL.createObjectURL(files.weights);
+
+            const jsonLink = document.createElement('a');
+            jsonLink.href = jsonUrl;
+            jsonLink.download = `${NameOfModel}.json`;
+            jsonLink.click();
+
+            const weightsLink = document.createElement('a');
+            weightsLink.href = weightsUrl;
+            weightsLink.download = `${NameOfModel}.weights.bin`;
+            weightsLink.click();
+
             return { modelArtifactsInfo: {} };
         });
-        */
 
-        // await model.save(handler);
-        await model.save(`downloads://${NameOfModel}`);
+        await model.save(handler);
 
         console.log(`モデル ${NameOfModel} の JSON と weights を正しく保存しました！`);
     } catch (error) {
         console.error(`モデル ${NameOfModel} の保存に失敗しました`, error);
     }
-}
+
 // close Model Modal
 function closeModelModal() {
     removeTarget = [];
