@@ -1310,39 +1310,41 @@ function removeModelOnSetting(selectModelName) {
     removeTarget.push(selectModelName);
     document.getElementById(selectModelName).remove();
 }
-// download Model from indexedDB
+// download Model from indexedDB (iOS対応)
 async function downloadModel(NameOfModel) {
     try {
         console.log(NameOfModel);
         const model = await tf.loadLayersModel(`indexeddb://${NameOfModel}`);
 
         const saveHandler = tf.io.withSaveHandler(async (data) => {
+            // JSON部分をdata URIで処理（iOS対策）
             const modelJSON = JSON.stringify({
                 modelTopology: data.modelTopology,
                 weightsManifest: data.weightManifest
             });
-            const jsonBlob = new Blob([modelJSON], { type: 'application/json' });
-            const weightsBlob = new Blob([data.weightData], { type: 'application/octet-stream' });
-
-            // JSON
-            const jsonURL = URL.createObjectURL(jsonBlob);
+            const jsonDataUri = "data:text/json;charset=utf-8," + encodeURIComponent(modelJSON);
             const jsonLink = document.createElement('a');
-            jsonLink.href = jsonURL;
+            jsonLink.href = jsonDataUri;
             jsonLink.download = `${NameOfModel}.json`;
+            document.body.appendChild(jsonLink);
             jsonLink.click();
+            document.body.removeChild(jsonLink);
 
-            // Weights
+            // WeightsはBlobで処理（こちらはiOSでも正常動作することが多い）
+            const weightsBlob = new Blob([data.weightData], { type: 'application/octet-stream' });
             const weightsURL = URL.createObjectURL(weightsBlob);
             const weightsLink = document.createElement('a');
             weightsLink.href = weightsURL;
             weightsLink.download = `${NameOfModel}.weights.bin`;
+            document.body.appendChild(weightsLink);
             weightsLink.click();
+            document.body.removeChild(weightsLink);
+            URL.revokeObjectURL(weightsURL); // 後始末
 
             return { modelArtifactsInfo: {} };
         });
 
         await model.save(saveHandler);
-
         console.log(`モデル ${NameOfModel} の JSON と weights を正しく保存しました！`);
     } catch (error) {
         console.error(`モデル ${NameOfModel} の保存に失敗しました`, error);
