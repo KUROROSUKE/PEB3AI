@@ -1,5 +1,5 @@
 # PEB3AI = Perfect Element Battle 3 by AI.  
-Element Battle 3 : card game by mahjong type.  
+Element Battle 3 : card game of mahjong type.  
 Element Battle 1/2 : I developed about 2024 years of .  
   
 If do you want to look Element Battle 1/2, then you can look at [this](https://kurorosuke.github.io/AllGames).  
