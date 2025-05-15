@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="元素を作成して遊ぶゲーム"/>
     <meta http-equiv="Cache-Control" content="public, max-age=604800">
-    <link rel="shortcut icon" href="https://kurorosuke.github.io/atom_game/favicon.ico" />
-    <link rel="apple-touch-icon" href="https://kurorosuke.github.io/atom_game/touch-icon.png" sizes="180×180">
+    <link rel="shortcut icon" href="https://kurorosuke.github.io/PEB3AI/favicon.ico" />
+    <link rel="apple-touch-icon" href="https://kurorosuke.github.io/PEB3AI/icons/apple-touch-icon-180x180.png" sizes="180×180">
     <link rel="manifest" href="https://kurorosuke.github.io/PEB3AI/manifest.json">
     <meta name="theme-color" content="#000000">
     <title>PEB3AI</title>
@@ -15,6 +15,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-layers" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.0/dist/jszip.min.js"></script>
     <link rel="preload" as="image" href="../images/start_screen_mobile.webp" media="(max-width: 730px)">
     <link rel="preload" as="image" href="../images/start_screen_desktop.webp" media="(min-width: 731px)">
     <style>
@@ -170,6 +171,6 @@
         <button onclick="applyModalSetting()">適用</button>
         <button onclick="closeModelModal()">取消</button>
     </div>
-    <script src="game-v3.js"></script>
+    <script src="game.js"></script>
 </body>
 </html>
