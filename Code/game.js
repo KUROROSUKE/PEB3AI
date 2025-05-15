@@ -1316,109 +1316,42 @@ function removeModelOnSetting(selectModelName) {
     document.getElementById(selectModelName).remove();
 }
 // download Model from indexedDB
-/*
 async function downloadModel(NameOfModel) {
     try {
         console.log(NameOfModel);
-        const model = await tf.loadLayersModel(`indexeddb://${NameOfModel}`);
-        // const model = await tf.io.browserDownloads(NameOfModel)
-*/
-        /*
-        const files = {};
-        const handler = tf.io.withSaveHandler(async (data) => {
-            files.json = new Blob([JSON.stringify({
-                modelTopology: data.modelTopology,
-                weightsManifest: data.weightManifest
-            })], { type: 'application/json' });
-            files.weights = new Blob([data.weightData], { type: 'application/octet-stream' });
-            return { modelArtifactsInfo: {} };
-        });
-        */
-/*
-        // await model.save(handler);
-        await model.save(`downloads://${NameOfModel}`);
 
-        console.log(`モデル ${NameOfModel} の JSON と weights を正しく保存しました！`);
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+        const model = await tf.loadLayersModel(`indexeddb://${NameOfModel}`);
+
+        if (isSafari) {
+            // Safari の場合：ZIP化してダウンロード
+            const saveResult = await model.save(tf.io.withSaveHandler(async (data) => {
+                const zip = new JSZip();
+
+                zip.file(`${NameOfModel}.json`, JSON.stringify(data.modelTopology));
+                zip.file(`${NameOfModel}.weights.bin`, new Blob([data.weightData]));
+
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(zipBlob);
+                link.download = `${NameOfModel}.zip`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                console.log(`モデル ${NameOfModel} を ZIP 化して Safari 用に保存しました`);
+            }));
+        } else {
+            // Safari 以外：通常の保存
+            await model.save(`downloads://${NameOfModel}`);
+            console.log(`モデル ${NameOfModel} を通常の方法で保存しました`);
+        }
+
     } catch (error) {
         console.error(`モデル ${NameOfModel} の保存に失敗しました`, error);
     }
-}
-*/
-// Helper function to trigger download from a Blob
-/*
-async function downloadModel(NameOfModel) {
-    await model.save(tf.io.withSaveHandler(async (data) => {
-        // モデルのJSON形式を作成
-        const modelJson = {
-            format: data.format || "layers-model",
-            generatedBy: data.generatedBy || "TensorFlow.js",
-            convertedBy: data.convertedBy || null,
-            modelTopology: data.modelTopology,
-            weightsManifest: [{
-                paths: [`${NameOfModel}_weights.bin`],
-                weights: data.weightSpecs
-            }]
-        };
-
-        // Blobを作成
-        const jsonBlob = new Blob(
-            [JSON.stringify(modelJson)],
-            { type: 'application/json' }
-        );
-
-        const weightsBlob = new Blob(
-            [data.weightData],
-            { type: 'application/octet-stream' }
-        );
-
-        // ダウンロード処理（iOS Safari対応）
-        downloadBlob(jsonBlob, `${NameOfModel}_model.json`);
-        downloadBlob(weightsBlob, `${NameOfModel}_weights.bin`);
-    }));
-}
-function downloadBlob(blob, filename) {
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-
-    // ✅ iOS Safari対応のため DOMに追加
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    // ✅ メモリ解放（Safariはタイミングに敏感）
-    setTimeout(() => URL.revokeObjectURL(url), 100);
-}
-*/
-async function downloadModel(NameOfModel) {
-    await model.save(tf.io.withSaveHandler(async (data) => {
-        // モデルJSONを構成
-        const modelJson = {
-            format: data.format || "layers-model",
-            generatedBy: data.generatedBy || "TensorFlow.js",
-            convertedBy: data.convertedBy || null,
-            modelTopology: data.modelTopology,
-            weightsManifest: [{
-                paths: [`${NameOfModel}_weights.bin`],
-                weights: data.weightSpecs
-            }]
-        };
-
-        // Blobを作成
-        const jsonBlob = new Blob(
-            [JSON.stringify(modelJson)],
-            { type: 'application/json' }
-        );
-        const weightsBlob = new Blob(
-            [data.weightData],
-            { type: 'application/octet-stream' }
-        );
-
-        // FileSaver.js を使ってダウンロード
-        saveAs(jsonBlob, `${NameOfModel}_model.json`);
-        saveAs(weightsBlob, `${NameOfModel}_weights.bin`);
-    }));
 }
 // close Model Modal
 function closeModelModal() {
