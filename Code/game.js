@@ -1154,49 +1154,74 @@ function showModelDetail() {
     document.getElementById("overlay").style.display = "inline";
 }
 // show model Modal
-function addLoadingButton() {
+async function addLoadingButton() {
+    // 外枠のdivを作成
     const NewModelOption = document.createElement("div");
     NewModelOption.id = "loadingModelButtonDiv";
     NewModelOption.style.border = "2px solid black";
     NewModelOption.style.width = "90%";
     NewModelOption.style.height = "5%";
     NewModelOption.style.textAlign = "center";
-    const NewModelOptionButton = document.createElement("label");
-    NewModelOptionButton.id = "NewModelOptionButton";
-    NewModelOptionButton.innerHTML = "モデルのJSONファイル（.json）とBINファイル（.weight.bin）を一つずつ選択";
-    NewModelOptionButton.onclick = function() {document.getElementById("loadingModelButton").click()};
-    let loadingModelButton = document.createElement("input");
-    loadingModelButton.innerHTML = "読込";
+    NewModelOption.style.margin = "10px auto";
+
+    // ファイル選択inputを作成
+    const loadingModelButton = document.createElement("input");
     loadingModelButton.id = "loadingModelButton";
     loadingModelButton.type = "file";
-    loadingModelButton.accept = [".json", ".bin"];
+    loadingModelButton.accept = ".json,.bin";
     loadingModelButton.multiple = true;
-    loadingModelButton.style.display="none";
-    document.getElementById("Attention3").style.display = "none";
+    loadingModelButton.style.display = "none";
+
+    // ファイル選択ボタン（ラベル）を作成し、inputに紐づけ
+    const NewModelOptionButton = document.createElement("label");
+    NewModelOptionButton.setAttribute("for", "loadingModelButton");
+    NewModelOptionButton.id = "NewModelOptionButton";
+    NewModelOptionButton.style.cursor = "pointer";
+    NewModelOptionButton.style.display = "inline-block";
+    NewModelOptionButton.style.padding = "10px";
+    NewModelOptionButton.style.backgroundColor = "#eee";
+    NewModelOptionButton.style.borderRadius = "5px";
+    NewModelOptionButton.innerText = "モデルのJSONファイル（.json）とBINファイル（.weight.bin）を一つずつ選択";
+
+    // ファイル読み込み時の処理
     loadingModelButton.addEventListener('change', async (event) => {
         const files = event.target.files;
-        if (files.length != 2) {alert("モデルのJSONファイル（.json）とBINファイル（.weight.bin）を一つずつ選択してください1"); return false;}
+
+        if (files.length !== 2) {
+            alert("モデルのJSONファイル（.json）とBINファイル（.weight.bin）を一つずつ選択してください");
+            return;
+        }
+
         const jsonFile = Array.from(files).find(file => file.name.endsWith('.json'));
-        const weightsFile = Array.from(files).filter(file => file.name.endsWith('.bin'))[0];
-        console.log(jsonFile);
-        console.log(weightsFile);
-        if (jsonFile == undefined || weightsFile == undefined) {alert("モデルのJSONファイル（.json）とBINファイル（.weight.bin）を一つずつ選択してください2"); return false;}
+        const weightsFile = Array.from(files).find(file => file.name.endsWith('.bin'));
+
+        if (!jsonFile || !weightsFile) {
+            alert("両方のファイル（.json と .bin）を選択してください");
+            return;
+        }
+
         const models = await getModelNames();
+        let modelName;
         do {
-            userInput = prompt("使われていない名前を入力してください:");
-        } while (models.includes(userInput));
-        modelName = userInput;
-        // const uploadJSONInput = document.getElementById('upload-json');
-        // const uploadWeightsInput = document.getElementById('upload-weights');
-        model = await tf.loadLayersModel(tf.io.browserFiles([jsonFile, weightsFile]));
-        // https://js.tensorflow.org/api/latest/?hl=ja#io.browserFiles
-        // model = await tf.loadLayersModel(tf.io.browserFiles([jsonFile, weightsFiles]));
-        await saveModel();
-        addOptions();
-        document.getElementById("loadingModelButton").value = "";
-        document.getElementById("loadingModelButton").placeholder = "モデルのパスを選択してください";
-        document.getElementById("Attention3").style.display = "none";
+            modelName = prompt("使われていない名前を入力してください:");
+            if (modelName === null) return; // キャンセル対応
+        } while (!modelName || models.includes(modelName));
+
+        try {
+            const model = await tf.loadLayersModel(tf.io.browserFiles([jsonFile, weightsFile]));
+            await model.save(`indexeddb://${modelName}`);
+            console.log(`モデル「${modelName}」を保存しました`);
+            addOptions(); // モデル一覧更新などがあれば
+        } catch (error) {
+            console.error("モデルの読み込みまたは保存に失敗しました:", error);
+            alert("モデルの読み込みまたは保存に失敗しました");
+        }
+
+        // フォームリセット
+        loadingModelButton.value = "";
     });
+
+    // 要素の追加
     NewModelOption.appendChild(loadingModelButton);
     NewModelOption.appendChild(NewModelOptionButton);
     document.getElementById("modelModals").appendChild(NewModelOption);
