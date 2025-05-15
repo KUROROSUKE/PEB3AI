@@ -1345,18 +1345,10 @@ async function downloadModel(NameOfModel) {
 }
 */
 // Helper function to trigger download from a Blob
-function downloadBlob(blob, filename) {
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-    link.click();
-
-    // メモリ解放
-    setTimeout(() => URL.revokeObjectURL(link.href), 100);
-}
+/*
 async function downloadModel(NameOfModel) {
     await model.save(tf.io.withSaveHandler(async (data) => {
-        // 正しい形式で model.json を構築
+        // モデルのJSON形式を作成
         const modelJson = {
             format: data.format || "layers-model",
             generatedBy: data.generatedBy || "TensorFlow.js",
@@ -1368,6 +1360,7 @@ async function downloadModel(NameOfModel) {
             }]
         };
 
+        // Blobを作成
         const jsonBlob = new Blob(
             [JSON.stringify(modelJson)],
             { type: 'application/json' }
@@ -1378,8 +1371,53 @@ async function downloadModel(NameOfModel) {
             { type: 'application/octet-stream' }
         );
 
+        // ダウンロード処理（iOS Safari対応）
         downloadBlob(jsonBlob, `${NameOfModel}_model.json`);
         downloadBlob(weightsBlob, `${NameOfModel}_weights.bin`);
+    }));
+}
+function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+
+    // ✅ iOS Safari対応のため DOMに追加
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // ✅ メモリ解放（Safariはタイミングに敏感）
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+}
+*/
+async function downloadModel(NameOfModel) {
+    await model.save(tf.io.withSaveHandler(async (data) => {
+        // モデルJSONを構成
+        const modelJson = {
+            format: data.format || "layers-model",
+            generatedBy: data.generatedBy || "TensorFlow.js",
+            convertedBy: data.convertedBy || null,
+            modelTopology: data.modelTopology,
+            weightsManifest: [{
+                paths: [`${NameOfModel}_weights.bin`],
+                weights: data.weightSpecs
+            }]
+        };
+
+        // Blobを作成
+        const jsonBlob = new Blob(
+            [JSON.stringify(modelJson)],
+            { type: 'application/json' }
+        );
+        const weightsBlob = new Blob(
+            [data.weightData],
+            { type: 'application/octet-stream' }
+        );
+
+        // FileSaver.js を使ってダウンロード
+        saveAs(jsonBlob, `${NameOfModel}_model.json`);
+        saveAs(weightsBlob, `${NameOfModel}_weights.bin`);
     }));
 }
 // close Model Modal
