@@ -1163,7 +1163,7 @@ async function addLoadingButton() {
     fileInput.id = "modelFileInput";
     fileInput.style.display = "none";
     fileInput.multiple = !isSafari;
-    fileInput.accept = isSafari ? ".zip" : ".json,.bin";
+    fileInput.accept =  ".zip";
 
     const label = document.createElement("label");
     label.setAttribute("for", "modelFileInput");
