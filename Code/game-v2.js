@@ -1182,80 +1182,52 @@ async function addLoadingButton() {
         let modelName;
 
         try {
-            if (isSafari) {
-                const zipFile = files[0];
-                if (!zipFile || !zipFile.name.endsWith(".zip")) {
-                    alert("ZIPファイルを選択してください");
-                    return;
-                }
-
-                const zip = await JSZip.loadAsync(zipFile);
-
-                // ZIP内のファイル名を取得
-                const fileNames = Object.keys(zip.files);
-
-                // model.jsonファイルを特定
-                const modelJsonName = fileNames.find(name => name.endsWith('.json'));
-                if (!modelJsonName) {
-                    throw new Error('model.json ファイルが見つかりません');
-                }
-
-                // その他のファイル（.binなど）を取得
-                const weightFileNames = fileNames.filter(name => name !== modelJsonName);
-
-                // model.jsonの内容を取得
-                const modelJson = await zip.files[modelJsonName].async('string');
-
-                // 重みファイルの内容を取得
-                const weightFiles = await Promise.all(
-                    weightFileNames.map(async name => {
-                        const content = await zip.files[name].async('arraybuffer');
-                        return new File([content], name, {type: 'application/octet-stream'});
-                    })
-                );
-
-                // model.jsonをFileオブジェクトに変換
-                const modelJsonFile = new File([modelJson], modelJsonName, {
-                    type: 'application/json',
-                });
-
-                // モデルを読み込む
-                const check = await tf.io.browserFiles([modelJsonFile, ...weightFiles]);
-                console.log(check)
-                model = await tf.loadLayersModel(check);
-                console.log(model);
-
-                let models = await getModelNames();
-                do {tmpModelName = prompt("使われていないモデルの名前を入力してください（半角英数のみ）")} while(models.includes(tmpModelName));
-
-                //modelName = jsonEntry.replace(".json", "");
-                modelName = tmpModelName;
-
-            } else {
-                if (files.length !== 2) {
-                    alert("JSONとBINファイルを1つずつ選択してください");
-                    return;
-                }
-
-                const jsonFile = files.find(f => f.name.endsWith(".json"));
-                const binFile = files.find(f => f.name.endsWith(".bin"));
-
-                if (!jsonFile || !binFile) {
-                    alert("両方のファイル（.json と .bin）を選択してください");
-                    return;
-                }
-
-                const check = await tf.io.browserFiles([jsonFile, binFile]);
-                console.log(check)
-                model = await tf.loadLayersModel(check);
-                console.log(model);
-
-                let models = await getModelNames();
-                do {tmpModelName = prompt("使われていないモデルの名前を入力してください（半角英数のみ）")} while(models.includes(tmpModelName));
-                
-                //modelName = jsonFile.name.replace(".json", "");
-                modelName = tmpModelName;
+            const zipFile = files[0];
+            if (!zipFile || !zipFile.name.endsWith(".zip")) {
+                alert("ZIPファイルを選択してください");
+                return;
             }
+
+            const zip = await JSZip.loadAsync(zipFile);
+
+            // ZIP内のファイル名を取得
+            const fileNames = Object.keys(zip.files);
+
+            // model.jsonファイルを特定
+            const modelJsonName = fileNames.find(name => name.endsWith('.json'));
+            if (!modelJsonName) {
+                throw new Error('model.json ファイルが見つかりません');
+            }
+
+            // その他のファイル（.binなど）を取得
+            const weightFileNames = fileNames.filter(name => name !== modelJsonName);
+
+            // model.jsonの内容を取得
+            const modelJson = await zip.files[modelJsonName].async('string');
+
+            // 重みファイルの内容を取得
+            const weightFiles = await Promise.all(
+                weightFileNames.map(async name => {
+                    const content = await zip.files[name].async('arraybuffer');
+                    return new File([content], name, {type: 'application/octet-stream'});
+                })
+            );
+
+            // model.jsonをFileオブジェクトに変換
+            const modelJsonFile = new File([modelJson], modelJsonName, {
+                type: 'application/json',
+            });
+
+            // モデルを読み込む
+            const check = await tf.io.browserFiles([modelJsonFile, ...weightFiles]);
+            console.log(check)
+            model = await tf.loadLayersModel(check);
+            console.log(model);
+
+            let models = await getModelNames();
+            do {tmpModelName = prompt("使われていないモデルの名前を入力してください（半角英数のみ）")} while(models.includes(tmpModelName));
+
+            modelName = tmpModelName;
 
             // 保存（IndexedDB に）
             await model.save(`indexeddb://${modelName}`);
@@ -1397,37 +1369,35 @@ async function downloadModel(NameOfModel) {
 
         const model = await tf.loadLayersModel(`indexeddb://${NameOfModel}`);
 
-        if (isSafari) {
-            const saveResult = await model.save(tf.io.withSaveHandler(async (data) => {
-                const zip = new JSZip();
+        await model.save(tf.io.withSaveHandler(async (data) => {
+            const zip = new JSZip();
 
-                // 重みバイナリファイル名を固定
-                const weightFileName = `${NameOfModel}.weights.bin`;
+            // 重みバイナリファイル名を固定
+            const weightFileName = `${NameOfModel}.weights.bin`;
 
-                // 完全な model.json を構築
-                const fullModelJson = {
-                    modelTopology: data.modelTopology,
-                    weightsManifest: [{
-                        paths: [weightFileName],
-                        weights: data.weightSpecs,
-                    }]
-                };
+            // 完全な model.json を構築
+            const fullModelJson = {
+                modelTopology: data.modelTopology,
+                weightsManifest: [{
+                    paths: [weightFileName],
+                    weights: data.weightSpecs,
+                }]
+            };
 
-                zip.file(`${NameOfModel}.json`, JSON.stringify(fullModelJson));
-                zip.file(weightFileName, new Blob([data.weightData]));
+            zip.file(`${NameOfModel}.json`, JSON.stringify(fullModelJson));
+            zip.file(weightFileName, new Blob([data.weightData]));
 
-                const zipBlob = await zip.generateAsync({ type: 'blob' });
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
 
-                const link = document.createElement("a");
-                link.href = URL.createObjectURL(zipBlob);
-                link.download = `${NameOfModel}.zip`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(zipBlob);
+            link.download = `${NameOfModel}.zip`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
 
-                console.log(`モデル ${NameOfModel} を ZIP 化して Safari 用に保存しました`);
-            }));
-        }
+            console.log(`モデル ${NameOfModel} を 保存しました`);
+        }));
     } catch (error) {
         console.error(`モデル ${NameOfModel} の保存に失敗しました`, error);
     }
