@@ -14,8 +14,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-layers" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.0/dist/jszip.min.js"></script>
     <link rel="preload" as="image" href="../images/start_screen_mobile.webp" media="(max-width: 730px)">
     <link rel="preload" as="image" href="../images/start_screen_desktop.webp" media="(min-width: 731px)">
     <style>
@@ -58,9 +56,10 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('https://kurorosuke.github.io/PEB3AI/sw.js')
-            .then(reg => console.log('Service Worker registered:', reg.scope))
-            .catch(err => console.error('Service Worker registration failed:', err));
+            //navigator.serviceWorker.register('https://kurorosuke.github.io/PEB3AI/sw.js')
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('Service Worker registered:', reg.scope))
+                .catch(err => console.error('Service Worker registration failed:', err));
         });
       }
     </script>
@@ -171,6 +170,6 @@
         <button onclick="applyModalSetting()">適用</button>
         <button onclick="closeModelModal()">取消</button>
     </div>
-    <script src="game-v7.js"></script>
+    <script src="game-v8.js"></script>
 </body>
 </html>
