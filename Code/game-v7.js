@@ -98,9 +98,9 @@ async function loadModel(url=null, NameOfModel=null) {
     try {
         if (url == null){//最初にこれを読み込む
             const models = await tf.io.listModels();
-            modelName = "standardModel3";
-            if (models['indexeddb://standardModel3']) {
-                model = await tf.loadLayersModel('indexeddb://standardModel3'); // IndexedDB からロード
+            modelName = "standardModel2";
+            if (models['indexeddb://standardModel2']) {
+                model = await tf.loadLayersModel('indexeddb://standardModel2'); // IndexedDB からロード
                 console.log("ローカルの学習済みモデルをロードしました");
             } else {
                 model = await tf.loadLayersModel('https://kurorosuke.github.io/AI_models/model3/model.json'); // 外部モデルをロード
@@ -1056,7 +1056,7 @@ async function saveWinSettings() {
     const thresholdInput = parseFloat(document.getElementById("threshold").value);
     const isTraining = document.getElementById("IsTraining").value;
     const compoundsSelection = document.getElementById("compoundsSelection").value;
-    const compoundsURL = compoundsSelection !== "url" ? `https://kurorosuke.github.io/compounds/${compoundsSelection}.json` : document.getElementById("compoundsURL").value;
+    const compoundsURL = compoundsSelection === "url" ? document.getElementById("compoundsURL").value : `https://kurorosuke.github.io/compounds/${compoundsSelection}.json`;
 
     if (isNaN(winPointInput)) {
         alert("コールドスコア は 1 以上 999 以下の数値を入力してください。");
@@ -1079,10 +1079,6 @@ async function saveWinSettings() {
         return;
     };
 
-    // 材料読み込み
-    let materials;
-    materials = await loadMaterials(compoundsURL);
-
     // threshold の検証
     if (isNaN(thresholdInput) || thresholdInput < 0) {
         alert("相手しきい値 は 0以上の値にしてください。");
@@ -1094,6 +1090,7 @@ async function saveWinSettings() {
     WIN_POINT = winPointInput;
     WIN_TURN = winTurnInput;
     IsTraining = isTraining;
+    materials = await loadMaterials(compoundsURL);
 
     // 設定ウィンドウを閉じる
     closeWinSettings();
@@ -1121,7 +1118,6 @@ function showInputTag() {
 
 // =====  detail of model Modal settings =====
 let removeTarget = [];
-let isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 // get model date (final uses)
 async function getModelsDate(modelName) {
     try {
@@ -1162,19 +1158,20 @@ async function addLoadingButton() {
     fileInput.type = "file";
     fileInput.id = "modelFileInput";
     fileInput.style.display = "none";
-    fileInput.multiple = !isSafari;
     fileInput.accept =  ".zip";
 
     const label = document.createElement("label");
     label.setAttribute("for", "modelFileInput");
     label.innerText = "モデルを読み込む";
     label.style.display = "inline-block";
-    label.style.padding = "10px 20px";
+    label.style.padding = "10px 0px";
     label.style.backgroundColor = "#eee";
     label.style.border = "1px solid #ccc";
     label.style.borderRadius = "6px";
     label.style.cursor = "pointer";
-    label.style.margin = "10px";
+    label.style.textAlign = "center";
+    label.style.margin = "0 0 20px 0";
+    label.id = "FileLoadLabel";
 
     fileInput.addEventListener("change", async (event) => {
         const files = Array.from(event.target.files);
@@ -1307,11 +1304,6 @@ async function addOptions() {
         deleteButton.id = newOption.id;
         deleteButton.onclick = function() { removeModelOnSetting(this.id); };
         
-        // 初期化ボタン
-        let resetButton = document.createElement("button");
-        resetButton.textContent = "初期化";
-        resetButton.onclick = function() { console.log("初期化が実行されました"); };
-        
         // 保存ボタン
         let saveButton = document.createElement("button");
         saveButton.textContent = "保存";
@@ -1324,7 +1316,6 @@ async function addOptions() {
         newOption.appendChild(selectButton);
         newOption.appendChild(saveButton);
         newOption.appendChild(deleteButton);
-        newOption.appendChild(resetButton);
         if (newOption.id == modelName) {newOption.style.background = "pink"; };
         
 
@@ -1339,22 +1330,6 @@ function selectModelOnSetting(selectModelName) {
         elem.style.background = "white";
     });
     document.getElementById(selectModelName).style.background = "pink";
-}
-// apply Model setting, and close
-function applyModalSetting() {
-    document.getElementById("winSettingsModal").style.display = "none";
-    removeTarget.forEach(elem => {
-        tf.io.removeModel(`indexeddb://${elem}`)
-    });
-    console.log(`this:${selectingModel}`);
-    if (selectingModel) {
-        if (!removeTarget.includes(selectingModel)) {
-            loadModel("notNull",selectingModel);
-        } else {
-            loadModel("https://kurorosuke.github.io/AI_models/model3");
-        };
-    }
-    closeModelModal();
 }
 // remove Model by setting
 function removeModelOnSetting(selectModelName) {
@@ -1401,6 +1376,22 @@ async function downloadModel(NameOfModel) {
     } catch (error) {
         console.error(`モデル ${NameOfModel} の保存に失敗しました`, error);
     }
+}
+// apply Model setting, and close
+function applyModalSetting() {
+    //document.getElementById("winSettingsModal").style.display = "none";
+    removeTarget.forEach(elem => {
+        tf.io.removeModel(`indexeddb://${elem}`)
+    });
+    console.log(`this:${selectingModel}`);
+    if (selectingModel) {
+        if (!removeTarget.includes(selectingModel)) {
+            loadModel("notNull",selectingModel);
+        } else {
+            loadModel("https://kurorosuke.github.io/AI_models/model3");
+        };
+    }
+    closeModelModal();
 }
 // close Model Modal
 function closeModelModal() {
@@ -1580,17 +1571,32 @@ function random_hand() {
         p2_hand.push(drawCard());
     };
 }
+// load materials JSON file (initialize)
+async function init_json() {
+    materials = await loadMaterials("https://kurorosuke.github.io/compounds/obf_standard_min.json");
+}
 // load materials from url
 async function loadMaterials(url) {
     try {
         const response = await fetch(url);
         const data = await response.json();
-        
+        let outputNum = model ? model.outputs[0].shape[1] : 108;
+
         if (!data.material || !Array.isArray(data.material)) {
             document.getElementById("Attention2").style.display = "inline";
             return [];
         };
         document.getElementById("Attention2").style.display = "none";
+        
+        console.log(data.material.length)
+        if (outputNum!=data.material.length) {
+            const att = document.getElementById("Attention4");
+            att.innerHTML = `モデルは出力${outputNum}個に対応していますが、compoundsは${data.material.length}個です`;
+            att.style.display="inline";
+        } else {
+            document.getElementById("Attention4").style.display = "none";
+        };
+        
         return data.material;
     } catch (error) {
         console.error("Error fetching compounds:", error);  // Log the error to the console for debugging
@@ -1641,17 +1647,6 @@ async function preloadBackgroundImages() {
         console.log("✅ 背景画像読み込み＆設定完了:", url);
     } catch (err) {
         console.error("背景画像の読み込みに失敗", url, err);
-    };
-}
-// load materials JSON file (initialize)
-async function init_json() {
-    materials = await loadMaterials("https://kurorosuke.github.io/compounds/obf_extended.json");
-    let outputNum = model.outputs[0].shape[1];
-    if (outputNum!=materials.length) {
-        const att = document.getElementById("Attention4");att.innerHTML = `モデルは出力${outputNum}個に対応していますが、compoundsは${materials.length}個です`;
-        att.style.display="inline";
-    } else {
-        document.getElementById("Attention4").style.display = "none";
     };
 }
 // start game
