@@ -128,25 +128,19 @@
     text-align: center;
     width: calc(100%/8 - 15px); /*padding = 5px なら15px*/
 }
-.modelModal p {
-    padding: 0 10% 0 0;
-}
 .modelModal button {
     min-width: 20%;
-    max-width: 40%;
-    height: 40%;
+    max-width: 60%;
+    height: 5vh;
     margin: 0 10px 0 0;
     display: inline;
 }
 .modelModal {
     text-align: center;
-    left: 5%;
-    width: 90%;
+    width: 100%;
     height: 25%;
-    padding: 10px 0 10px 0;
-    margin-bottom: 5vh;
     border: 2px solid #333333;
-    border-radius: 10px;
+    border-radius: 5px;
     font-size: 2vh;
 }
 #modelModals {
@@ -158,9 +152,10 @@
     height: 80%;
     background: white;
     border: 1px solid black;
-    padding: 0 0 0 5%;
+    padding: 0 3% 0 3%;
     z-index: 102;
     overflow-y: scroll;
+    overflow-x: hidden;
 }
 
 #buttonModal {
@@ -169,7 +164,7 @@
     text-align: center;
     left: 20%;
     top: 85%;
-    width: 65%;
+    width: 66%;
     height: 10%;
     background: white;
     border: 1px solid black;
@@ -211,27 +206,27 @@
     align-items: center;
     justify-content: space-between;
     background-color: white;
-    left: 5%;
-    width: 90%;
+    margin: 20px 0 10px 0;
+    width: 100%;
     height: 10%;
 }
 #inputTag {
+    height: 100%;
     flex-grow: 1;
     width: auto;
-    display: inline;
+    font-size: 100%;
+    box-sizing: border-box;
 }
-
 #inputButton {
     cursor: pointer;
     background-color: #ddd;
-    font-size: 80%;
+    font-size: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-}
-#inputTag, #inputButton {
-    height: 60%; /* 共通の高さを指定 */
-    border-radius: 5px;
+    height: 100%;
+    width: 18%;
+    font-family: initial;
 }
 .selected {
     border: 4px solid red; /* Inner border effect */
@@ -320,6 +315,9 @@
     height: 3vh;
     margin: 0 5% 5% 0;
 }
+#FileLoadLabel {
+    width: 100%;
+}
 
 @media screen and (max-width: 730px) {
     #winSettingsModal {
@@ -353,11 +351,11 @@
         position: fixed;
         left: 0%;
         top: 0%;
-        width: 100%;
+        width: calc(100vw - 6%);
         height: 85%;
         background: white;
         border: 1px solid black;
-        padding: 0 0 0 5%;
+        padding: 0 3% 0 3%;
         z-index: 102;
         overflow-y: auto;
     }
@@ -372,6 +370,13 @@
         background: white;
         border: 1px solid black;
         z-index: 103;
+    }
+    .modelModal button {
+        min-width: 25%;
+        max-width: 60%;
+        height: 5vh;
+        margin: 0 10px 0 0;
+        display: inline;
     }
 }
 @media screen and (min-width: 731px) {
