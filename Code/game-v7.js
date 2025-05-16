@@ -1552,6 +1552,7 @@ async function findMostPointMaterial() {
 // ========== game reset and start ==========
 let materials = [];
 let imageCache = {};
+let JSZip;
 // init web game
 document.addEventListener('DOMContentLoaded', async function () {
     await preloadBackgroundImages();
@@ -1563,6 +1564,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     addInputModelDiv();
     addLoadingButton();
     document.getElementById("startButton").style.display = "inline";
+    JSZip = (await import('https://cdn.skypack.dev/jszip@3.10.0')).default;
 });
 // initialize hand
 function random_hand() {
