@@ -56,8 +56,7 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            //navigator.serviceWorker.register('https://kurorosuke.github.io/PEB3AI/sw.js')
-            navigator.serviceWorker.register('/sw.js')
+            navigator.serviceWorker.register('https://kurorosuke.github.io/PEB3AI/sw-v2.js')
                 .then(reg => console.log('Service Worker registered:', reg.scope))
                 .catch(err => console.error('Service Worker registration failed:', err));
         });
