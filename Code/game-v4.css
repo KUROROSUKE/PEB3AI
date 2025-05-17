@@ -329,7 +329,7 @@
         width:calc(7%)
     }
     .buttons {
-        width: 30%;
+        width: 30vw;
     }
     /* 背景 */
     #startScreen {
